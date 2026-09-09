@@ -1,0 +1,2559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk Detailed SEO Auditor & Debugger</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="shortcut icon" href="/favicon.png">
+    <link rel="apple-touch-icon" href="/favicon.png">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        detailed: {
+                            header: '#191828',
+                            primary: '#6b6bf6',
+                            primaryHover: '#5858e6',
+                            cardBg: '#ffffff',
+                            badgeGreen: '#10b981',
+                            badgeGreenBg: '#e6f9f0',
+                            badgeRed: '#ef4444',
+                            badgeRedBg: '#fef2f2',
+                            badgeGray: '#6b7280',
+                            badgeGrayBg: '#f3f4f6'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f8fafc;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .extension-modal-content {
+            box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col">
+
+    <!-- Top Navigation -->
+    <header class="bg-[#191828] text-white sticky top-0 z-30 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm overflow-hidden bg-white/10 p-0.5 border border-white/10">
+                    <img src="/yd_logo.png" alt="YD Logo" class="w-full h-full object-contain" onerror="this.parentElement.innerHTML='<div class=\'bg-gradient-to-tr from-[#6b6bf6] to-[#9d9df9] w-full h-full rounded-xl flex items-center justify-center font-bold text-lg\'>D</div>'">
+                </div>
+                <div>
+                    <h1 class="text-base font-bold tracking-wide flex items-center gap-2">
+                        BULK DETAILED SEO <span class="bg-white/10 text-xs text-indigo-200 px-2 py-0.5 rounded-full font-medium">Enterprise Engine</span>
+                    </h1>
+                    <p class="text-[11px] text-gray-400">1:1 On-Page DOM Auditor, Batch Crawler & Live Debugger</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <button onclick="toggleDebugConsole()" class="text-xs bg-white/10 hover:bg-white/20 text-gray-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition">
+                    <i class="fas fa-terminal text-amber-400"></i>
+                    <span>Debug Console</span>
+                    <span id="debugBadge" class="bg-indigo-500/80 text-[10px] px-1.5 py-0.2 rounded-full font-mono">0</span>
+                </button>
+                <button onclick="loadSampleUrls()" class="text-xs bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/40 px-3 py-1.5 rounded-lg transition">
+                    <i class="fas fa-magic mr-1"></i> Load Sample URLs
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- Input & Control Panel -->
+        <section class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <!-- Tabs Header -->
+            <div class="flex flex-wrap border-b border-slate-200 bg-slate-50/70 px-4 pt-3 gap-2">
+                <button onclick="switchInputTab('paste')" id="tabBtn-paste" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-[#6b6bf6] text-[#6b6bf6] bg-indigo-50/50 rounded-t-lg flex items-center gap-2 transition">
+                    <i class="fas fa-list-ul"></i> <span>Paste URLs</span>
+                </button>
+                <button onclick="switchInputTab('sitemap')" id="tabBtn-sitemap" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800 rounded-t-lg flex items-center gap-2 transition">
+                    <i class="fas fa-sitemap"></i> <span>Sitemap.xml Fetcher</span>
+                </button>
+                <button onclick="switchInputTab('file')" id="tabBtn-file" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800 rounded-t-lg flex items-center gap-2 transition">
+                    <i class="fas fa-file-csv"></i> <span>Upload File</span>
+                </button>
+                <button onclick="switchInputTab('reclaim')" id="tabBtn-reclaim" class="px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800 rounded-t-lg flex items-center gap-2 transition">
+                    <i class="fas fa-satellite-dish text-amber-500"></i> <span>Wayback Lost URL Hunter (CDX)</span>
+                </button>
+            </div>
+
+            <!-- Tab Contents -->
+            <div class="p-6">
+                <!-- 1. PASTE URLs TAB (100% SELF-CONTAINED) -->
+                <div id="tab-paste" class="space-y-4">
+                    <div>
+                        <div class="flex justify-between items-center mb-1.5">
+                            <label for="urlsInput" class="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-2">
+                                <i class="fas fa-pen-to-square text-[#6b6bf6]"></i> Enter Target URLs (one per line)
+                            </label>
+                            <span id="urlCountBadge" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full font-semibold">0 URLs detected</span>
+                        </div>
+                        <textarea id="urlsInput" rows="6" placeholder="https://yatradham.org/yatradham-destinations/gujarat/dwarka.html&#10;https://detailed.com/&#10;https://detailed.com/extension/"
+                            class="w-full text-xs font-mono p-3.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#6b6bf6] focus:bg-white transition leading-relaxed"></textarea>
+                    </div>
+
+                    <div class="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100">
+                        <div class="flex items-center gap-3">
+                            <button onclick="loadSampleUrls()" class="text-xs font-semibold text-[#6b6bf6] hover:text-[#5858e6] bg-indigo-50 hover:bg-indigo-100/70 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
+                                <i class="fas fa-wand-magic-sparkles"></i> Load Sample URLs
+                            </button>
+                            <button onclick="clearPasteUrls()" class="text-xs font-medium text-slate-400 hover:text-red-500 transition flex items-center gap-1">
+                                <i class="fas fa-eraser"></i> Clear Text
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-bold text-slate-600 uppercase">Concurrency:</span>
+                                <select id="concurrencySelect-paste" class="text-xs font-semibold bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#6b6bf6]">
+                                    <option value="3">3 Workers (Gentle)</option>
+                                    <option value="5" selected>5 Workers (Optimal)</option>
+                                    <option value="10">10 Workers (Fast)</option>
+                                    <option value="15">15 Workers (Turbo)</option>
+                                </select>
+                            </div>
+                            <button onclick="startPasteAudit()" id="startBtn-paste" class="bg-[#6b6bf6] hover:bg-[#5858e6] text-white font-bold text-xs sm:text-sm px-6 py-2.5 rounded-xl flex items-center gap-2 transition shadow-md shadow-indigo-200">
+                                <i class="fas fa-play"></i>
+                                <span>Start Bulk Audit</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. SITEMAP.XML FETCHER TAB (100% SELF-CONTAINED) -->
+                <div id="tab-sitemap" class="hidden space-y-4">
+                    <div class="bg-blue-50/60 border border-blue-200/80 rounded-xl p-4">
+                        <div class="flex items-start gap-3">
+                            <span class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
+                                <i class="fas fa-sitemap"></i>
+                            </span>
+                            <div class="space-y-1">
+                                <h3 class="text-sm font-bold text-blue-950">Direct XML Sitemap Crawler & Auditor</h3>
+                                <p class="text-xs text-blue-800 leading-relaxed">
+                                    Fetch, inspect, and audit all pages inside any XML sitemap or nested Sitemap Index without leaving this tab.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="sitemapInput" class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                            Enter XML Sitemap or Robots.txt URL
+                        </label>
+                        <div class="flex flex-col sm:flex-row gap-2.5">
+                            <input type="url" id="sitemapInput" placeholder="https://www.makemytrip.com/robots.txt or sitemap.xml" value="https://detailed.com/page-sitemap.xml"
+                                class="flex-1 text-sm p-3 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#6b6bf6] focus:bg-white transition">
+                            <button onclick="fetchSitemap()" id="btnFetchSitemap" class="bg-slate-800 hover:bg-slate-900 text-white font-semibold text-xs px-5 py-3 rounded-xl flex items-center justify-center gap-2 transition shadow-sm cursor-pointer">
+                                <i class="fas fa-cloud-arrow-down"></i>
+                                <span>Fetch Sitemap</span>
+                            </button>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2 mt-2">
+                            <span class="text-[11px] font-bold text-slate-400">Quick Samples:</span>
+                            <button onclick="loadSitemapSample('https://www.makemytrip.com/robots.txt')" class="text-[11px] font-mono bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded border border-indigo-200 transition cursor-pointer">makemytrip.com/robots.txt</button>
+                            <button onclick="loadSitemapSample('https://www.makemytrip.com/')" class="text-[11px] font-mono bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 px-2 py-0.5 rounded border border-slate-200 transition cursor-pointer">makemytrip.com</button>
+                            <button onclick="loadSitemapSample('https://detailed.com/page-sitemap.xml')" class="text-[11px] font-mono bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 px-2 py-0.5 rounded border border-slate-200 transition cursor-pointer">detailed.com/page-sitemap.xml</button>
+                            <button onclick="loadSitemapSample('https://detailed.com/sitemap_index.xml')" class="text-[11px] font-mono bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 px-2 py-0.5 rounded border border-slate-200 transition cursor-pointer">detailed.com/sitemap_index.xml</button>
+                            <button onclick="loadSitemapSample('https://yatradham.org/sitemap.xml')" class="text-[11px] font-mono bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 px-2 py-0.5 rounded border border-slate-200 transition cursor-pointer">yatradham.org/sitemap.xml</button>
+                        </div>
+                    </div>
+
+                    <!-- Robots.txt & AI Crawler Inspection Card -->
+                    <div id="robotsInspectionCard" class="hidden space-y-3 pt-3 border-t border-slate-100">
+                        <div class="bg-gradient-to-r from-slate-900 to-indigo-950 text-white p-4 rounded-xl shadow-sm space-y-3">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <div class="flex items-center gap-2.5">
+                                    <span class="w-8 h-8 rounded-lg bg-indigo-500/30 text-indigo-300 border border-indigo-400/30 flex items-center justify-center font-bold text-sm">
+                                        <i class="fas fa-robot"></i>
+                                    </span>
+                                    <div>
+                                        <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-300 flex items-center gap-1.5">
+                                            <span>Robots.txt & AI Crawler Intelligence</span>
+                                            <span id="robotsDomainBadge" class="bg-indigo-500/20 text-indigo-200 border border-indigo-400/30 text-[10px] px-2 py-0.5 rounded-full font-mono"></span>
+                                        </h4>
+                                        <p class="text-[11px] text-slate-300">Enterprise crawl permissions, AI search engine access, and declared sitemaps</p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <a id="rawRobotsLink" href="#" target="_blank" class="text-[11px] text-indigo-300 hover:text-white underline flex items-center gap-1">
+                                        <span>View raw robots.txt</span> <i class="fas fa-arrow-up-right-from-square text-[10px]"></i>
+                                    </a>
+                                </div>
+                            </div>
+
+                            <!-- AI Bots Audit Grid -->
+                            <div id="aiBotsGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                                <!-- Dynamic AI Bot Cards -->
+                            </div>
+                        </div>
+
+                        <!-- Declared Multi-Sitemaps Container -->
+                        <div id="declaredSitemapsContainer" class="hidden bg-slate-50 border border-slate-200 p-3.5 rounded-xl space-y-3">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                        <i class="fas fa-folder-tree text-indigo-500"></i>
+                                        <span>Declared XML Sitemaps in Robots.txt:</span>
+                                        <span id="declaredSitemapsCountBadge" class="bg-indigo-100 text-indigo-700 text-[11px] font-bold px-2 py-0.5 rounded-full">0</span>
+                                    </span>
+                                </div>
+                                <span class="text-[11px] text-slate-400">Click any sitemap to audit its URLs</span>
+                            </div>
+
+                            <!-- Category Filter Chips -->
+                            <div id="sitemapCategoryFilters" class="flex flex-wrap gap-1.5 pt-1">
+                                <!-- Dynamic Category Pills -->
+                            </div>
+
+                            <!-- Declared Sitemaps List (Filtered) -->
+                            <div id="declaredSitemapsList" class="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-1">
+                                <!-- Dynamic Sitemap Pills with Vertical Tags -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sitemap Discovered Preview Box (Initially Hidden until fetched) -->
+                    <div id="sitemapPreviewCard" class="hidden space-y-3 pt-3 border-t border-slate-100">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div class="flex items-center gap-2">
+                                <span id="sitemapStatusBadge" class="bg-emerald-50 text-emerald-700 text-xs px-2.5 py-1 rounded-full font-bold flex items-center gap-1.5">
+                                    <i class="fas fa-circle-check"></i> <span>0 URLs Discovered</span>
+                                </span>
+                                <span id="sitemapIndexBadge" class="hidden bg-purple-50 text-purple-700 text-xs px-2.5 py-1 rounded-full font-semibold">Sitemap Index</span>
+                            </div>
+                            <div class="flex items-center gap-2 text-xs">
+                                <button onclick="clearSitemapData()" class="text-slate-400 hover:text-red-500 text-xs transition">
+                                    <i class="fas fa-trash-can"></i> Clear
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Sub-sitemaps container (if index detected) -->
+                        <div id="subSitemapsContainer" class="hidden bg-slate-50 p-3 rounded-xl border border-slate-200/80 space-y-2">
+                            <span class="text-xs font-bold text-slate-600 uppercase tracking-wider block">Discovered Sub-Sitemaps:</span>
+                            <div id="subSitemapsList" class="flex flex-wrap gap-2">
+                                <!-- Dynamic Sub-sitemap Pills -->
+                            </div>
+                        </div>
+
+                        <!-- Discovered URLs Textarea -->
+                        <div>
+                            <label for="sitemapUrlsInput" class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">
+                                Discovered URLs in Sitemap (Editable list)
+                            </label>
+                            <textarea id="sitemapUrlsInput" rows="5" class="w-full text-xs font-mono p-3 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#6b6bf6] focus:bg-white transition"></textarea>
+                        </div>
+
+                        <!-- Action Bar for Sitemap Audit -->
+                        <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-bold text-slate-600 uppercase">Concurrency:</span>
+                                <select id="concurrencySelect-sitemap" class="text-xs font-semibold bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#6b6bf6]">
+                                    <option value="3">3 Workers (Gentle)</option>
+                                    <option value="5" selected>5 Workers (Optimal)</option>
+                                    <option value="10">10 Workers (Fast)</option>
+                                    <option value="15">15 Workers (Turbo)</option>
+                                </select>
+                            </div>
+                            <button onclick="startSitemapAudit()" id="startBtn-sitemap" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs sm:text-sm px-6 py-2.5 rounded-xl flex items-center gap-2 transition shadow-md shadow-blue-200">
+                                <i class="fas fa-play"></i>
+                                <span id="startBtn-sitemap-text">Audit Sitemap URLs</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. UPLOAD FILE TAB (100% SELF-CONTAINED) -->
+                <div id="tab-file" class="hidden space-y-4">
+                    <div class="bg-indigo-50/50 border border-indigo-200/80 rounded-xl p-4">
+                        <div class="flex items-start gap-3">
+                            <span class="w-8 h-8 rounded-lg bg-[#6b6bf6] text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
+                                <i class="fas fa-file-csv"></i>
+                            </span>
+                            <div class="space-y-1">
+                                <h3 class="text-sm font-bold text-slate-900">Upload CSV or TXT URL List</h3>
+                                <p class="text-xs text-slate-600 leading-relaxed">
+                                    Drop any CSV or TXT file. URLs are extracted, previewed, and audited directly in this tab without altering your pasted list.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dropzone -->
+                    <div id="fileDropZone" class="border-2 border-dashed border-slate-300 hover:border-[#6b6bf6] rounded-xl p-8 text-center bg-slate-50 hover:bg-indigo-50/30 transition cursor-pointer" onclick="document.getElementById('fileUpload').click()">
+                        <input type="file" id="fileUpload" accept=".csv,.txt" class="hidden" onchange="handleFileUpload(event)">
+                        <i class="fas fa-cloud-arrow-up text-3xl text-indigo-500 mb-2"></i>
+                        <p class="text-sm font-bold text-slate-700">Click to choose a CSV or TXT file, or drag and drop here</p>
+                        <p class="text-xs text-slate-400 mt-1">Accepts CSV tables (auto-detects 'url', 'href', or 'link' columns) or plain text lists</p>
+                    </div>
+
+                    <!-- File Discovered Preview Card (Initially Hidden until file picked) -->
+                    <div id="filePreviewCard" class="hidden space-y-3 pt-3 border-t border-slate-100">
+                        <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-lg bg-indigo-100 text-[#6b6bf6] flex items-center justify-center font-bold text-lg">
+                                    <i class="fas fa-file-lines"></i>
+                                </div>
+                                <div>
+                                    <p id="uploadedFileName" class="text-xs font-bold text-slate-900">filename.csv</p>
+                                    <p id="uploadedFileSize" class="text-[11px] text-slate-400">0 KB</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span id="fileUrlCountBadge" class="bg-emerald-50 text-emerald-700 font-bold text-xs px-2.5 py-1 rounded-full">
+                                    0 URLs Detected
+                                </span>
+                                <button onclick="clearUploadedFile()" class="text-slate-400 hover:text-red-500 text-xs px-2 py-1 transition">
+                                    <i class="fas fa-xmark"></i> Remove
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Discovered URLs Textarea -->
+                        <div>
+                            <label for="fileUrlsInput" class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">
+                                Parsed URLs from File (Editable list)
+                            </label>
+                            <textarea id="fileUrlsInput" rows="5" class="w-full text-xs font-mono p-3 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#6b6bf6] focus:bg-white transition"></textarea>
+                        </div>
+
+                        <!-- Action Bar for File Audit -->
+                        <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-bold text-slate-600 uppercase">Concurrency:</span>
+                                <select id="concurrencySelect-file" class="text-xs font-semibold bg-slate-100 border border-slate-300 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#6b6bf6]">
+                                    <option value="3">3 Workers (Gentle)</option>
+                                    <option value="5" selected>5 Workers (Optimal)</option>
+                                    <option value="10">10 Workers (Fast)</option>
+                                    <option value="15">15 Workers (Turbo)</option>
+                                </select>
+                            </div>
+                            <button onclick="startFileAudit()" id="startBtn-file" class="bg-[#6b6bf6] hover:bg-[#5858e6] text-white font-bold text-xs sm:text-sm px-6 py-2.5 rounded-xl flex items-center gap-2 transition shadow-md shadow-indigo-200">
+                                <i class="fas fa-play"></i>
+                                <span id="startBtn-file-text">Audit Uploaded URLs</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. WAYBACK MACHINE CDX RECLAMATION TAB (100% SELF-CONTAINED) -->
+                <div id="tab-reclaim" class="hidden space-y-4">
+                    <div class="bg-amber-50/60 border border-amber-200/80 rounded-xl p-4">
+                        <div class="flex items-start gap-3">
+                            <span class="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
+                                <i class="fas fa-satellite-dish"></i>
+                            </span>
+                            <div class="space-y-1">
+                                <h3 class="text-sm font-bold text-amber-950">Wayback Machine CDX Historical URL & 404 Reclamation Hunter</h3>
+                                <p class="text-xs text-amber-800 leading-relaxed">
+                                    Discovers all historical URLs Archive.org ever crawled for your domain, tests them live against your current server, and isolates <strong>Dead 404 Pages</strong> with historical backlinks so you can reclaim link equity with 301 redirects.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                        <div class="md:col-span-2">
+                            <label for="reclaimDomainInput" class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                                Target Domain
+                            </label>
+                            <input type="text" id="reclaimDomainInput" placeholder="yatradham.org" value="yatradham.org"
+                                class="w-full text-sm p-3 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#6b6bf6] focus:bg-white transition">
+                            <div class="flex items-center gap-2 mt-1.5">
+                                <span class="text-[11px] text-slate-400">Quick Samples:</span>
+                                <button onclick="document.getElementById('reclaimDomainInput').value='yatradham.org'" class="text-[11px] font-mono bg-slate-100 hover:bg-amber-50 text-slate-600 hover:text-amber-700 px-2 py-0.5 rounded border border-slate-200 transition">yatradham.org</button>
+                                <button onclick="document.getElementById('reclaimDomainInput').value='detailed.com'" class="text-[11px] font-mono bg-slate-100 hover:bg-amber-50 text-slate-600 hover:text-amber-700 px-2 py-0.5 rounded border border-slate-200 transition">detailed.com</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="reclaimLimitSelect" class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                                Max CDX Captures
+                            </label>
+                            <select id="reclaimLimitSelect" class="w-full text-sm p-3 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#6b6bf6] font-semibold text-slate-700">
+                                <option value="50">50 Historical URLs (Fast)</option>
+                                <option value="100" selected>100 Historical URLs (Recommended)</option>
+                                <option value="250">250 Historical URLs (Deep)</option>
+                                <option value="500">500 Historical URLs (Max)</option>
+                            </select>
+                        </div>
+                        <div class="flex items-end">
+                            <button onclick="startWaybackReclaim()" id="btnStartReclaim" class="w-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-bold text-xs sm:text-sm p-3.5 rounded-xl flex items-center justify-center gap-2 transition shadow-md shadow-amber-200">
+                                <i class="fas fa-magnifying-glass"></i>
+                                <span>Hunt Lost 404 URLs</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Progress Bar Section (Hidden by Default) -->
+        <section id="progressSection" class="hidden bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-3">
+            <div class="flex items-center justify-between text-xs font-semibold text-slate-700">
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 rounded-full bg-indigo-500 animate-ping"></div>
+                    <span id="progressStatusText">Running bulk audit...</span>
+                </div>
+                <div class="flex items-center gap-4 text-slate-500 font-mono">
+                    <span>Processed: <strong id="progressCount" class="text-slate-800">0 / 0</strong></span>
+                    <span>Elapsed: <strong id="elapsedTimer" class="text-slate-800">00:00</strong></span>
+                </div>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                <div id="progressBarFill" class="bg-gradient-to-r from-[#6b6bf6] to-[#8686fb] h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <div class="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                <div class="flex items-center gap-3">
+                    <span class="text-emerald-600 font-medium flex items-center gap-1"><i class="fas fa-circle-check"></i> <span id="statSuccess">0</span> Success</span>
+                    <span class="text-rose-600 font-medium flex items-center gap-1"><i class="fas fa-circle-xmark"></i> <span id="statFailed">0</span> Failed / Blocked</span>
+                </div>
+                <div id="currentProcessingUrl" class="truncate max-w-md font-mono text-[11px] text-slate-400"></div>
+            </div>
+        </section>
+
+        <!-- Results Table Section -->
+        <section id="resultsSection" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden space-y-4 p-6">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <span>Audit Results</span>
+                        <span id="totalResultsBadge" class="bg-indigo-50 text-indigo-700 text-xs px-2.5 py-0.5 rounded-full font-bold">0 URLs</span>
+                    </h2>
+                    <p class="text-xs text-slate-400">Click any row to open the complete Detailed SEO Extension popup view</p>
+                </div>
+
+                <!-- Export & Filter Buttons -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <div class="relative">
+                        <i class="fas fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-400"></i>
+                        <input type="text" id="tableFilterInput" onkeyup="filterResultsTable()" placeholder="Filter by keyword or URL..."
+                            class="text-xs pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#6b6bf6] w-48 transition">
+                    </div>
+
+                    <select id="filterStatus" onchange="filterResultsTable()" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-2 text-slate-600">
+                        <option value="all">All URLs</option>
+                        <option value="indexable">Indexable Only</option>
+                        <option value="non-indexable">Non-Indexable</option>
+                        <option value="canon-diff">Canonical Mismatch</option>
+                        <option value="failed">Failed / Error</option>
+                    </select>
+
+                    <button onclick="exportToCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm">
+                        <i class="fas fa-file-excel"></i> Export SEO CSV
+                    </button>
+                    <button onclick="exportAllLinksCSV()" class="bg-slate-800 hover:bg-slate-900 text-white font-semibold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm">
+                        <i class="fas fa-link"></i> Export Links CSV
+                    </button>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="overflow-x-auto border border-slate-200 rounded-xl">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 uppercase tracking-wider">
+                        <tr>
+                            <th class="py-3 px-3.5 w-12 text-center">#</th>
+                            <th class="py-3 px-3">Status</th>
+                            <th class="py-3 px-3">Page Title</th>
+                            <th class="py-3 px-3">Indexability</th>
+                            <th class="py-3 px-3">Canonical</th>
+                            <th class="py-3 px-3">Headings</th>
+                            <th class="py-3 px-3">Links</th>
+                            <th class="py-3 px-3 text-right">Words</th>
+                            <th class="py-3 px-3 text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultsTableBody" class="divide-y divide-slate-100 font-medium text-slate-700">
+                        <!-- Dynamic Rows -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Wayback Machine CDX Reclamation Results Section (Hidden by Default) -->
+        <section id="reclaimSection" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden space-y-6 p-6">
+            <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                <div>
+                    <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fas fa-satellite-dish text-amber-500"></i>
+                        <span>Historical 404 & Lost URL Audit</span>
+                        <span id="reclaimDomainBadge" class="bg-amber-100 text-amber-800 text-xs px-2.5 py-0.5 rounded-full font-mono">domain.com</span>
+                    </h2>
+                    <p class="text-xs text-slate-400">Isolated historical captures that return 404 on the live server. Ready for 301 redirect mapping.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="sendReclaimedToBulkAudit(false)" class="bg-[#6b6bf6] hover:bg-[#5858e6] text-white font-semibold text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition shadow-sm">
+                        <i class="fas fa-play"></i>
+                        <span>Audit All in Detailed SEO</span>
+                    </button>
+                    <button onclick="export301RedirectCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition shadow-sm">
+                        <i class="fas fa-file-csv"></i>
+                        <span>Export 301 Redirect Map (.CSV)</span>
+                    </button>
+                    <button onclick="closeReclaimSection()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-xs px-3 py-2 rounded-xl transition">
+                        <i class="fas fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 4 Reclamation Stats Counters -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200/80">
+                    <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Discovered</p>
+                    <p id="recStatTotal" class="text-xl font-bold text-slate-800">0</p>
+                </div>
+                <div class="bg-rose-50/70 p-4 rounded-xl border border-rose-200/80">
+                    <p class="text-[11px] font-bold text-rose-600 uppercase tracking-wider">❌ Dead 404 Pages</p>
+                    <p id="recStatLost" class="text-xl font-bold text-rose-600">0</p>
+                </div>
+                <div class="bg-blue-50/70 p-4 rounded-xl border border-blue-200/80">
+                    <p class="text-[11px] font-bold text-blue-600 uppercase tracking-wider">🔀 Redirected (3xx)</p>
+                    <p id="recStatRedirected" class="text-xl font-bold text-blue-600">0</p>
+                </div>
+                <div class="bg-emerald-50/70 p-4 rounded-xl border border-emerald-200/80">
+                    <p class="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">✅ Active (200)</p>
+                    <p id="recStatActive" class="text-xl font-bold text-emerald-600">0</p>
+                </div>
+            </div>
+
+            <!-- Filters Bar -->
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-slate-500 uppercase mr-1">Filter:</span>
+                    <button onclick="filterReclaimTable('all')" id="recFilter-all" class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-white transition">All URLs</button>
+                    <button onclick="filterReclaimTable('lost404')" id="recFilter-lost404" class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition">Dead 404s Only</button>
+                    <button onclick="filterReclaimTable('redirected')" id="recFilter-redirected" class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition">Redirected</button>
+                    <button onclick="filterReclaimTable('active200')" id="recFilter-active200" class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition">Active 200</button>
+                </div>
+                <span id="recTableCountBadge" class="text-xs text-slate-400 font-medium">0 URLs</span>
+            </div>
+
+            <!-- Reclamation Table -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
+                        <tr>
+                            <th class="py-3 px-3">#</th>
+                            <th class="py-3 px-3">Historical URL</th>
+                            <th class="py-3 px-3">First Seen</th>
+                            <th class="py-3 px-3">Live Status</th>
+                            <th class="py-3 px-3">Suggested 301 Target</th>
+                            <th class="py-3 px-3 text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reclaimTableBody" class="divide-y divide-slate-100 font-medium text-slate-700">
+                        <!-- Dynamic Rows -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ─────────────────────────────────────────────────────────────
+         DETAILED SEO EXTENSION 1:1 MODAL / SLIDE DRAWER
+         ───────────────────────────────────────────────────────────── -->
+    <div id="detailedModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-3 sm:p-6 transition-all">
+        <div class="bg-white w-full max-w-3xl max-h-[92vh] rounded-2xl flex flex-col overflow-hidden shadow-2xl border border-slate-200 extension-modal-content animate-in fade-in zoom-in-95 duration-150">
+            
+            <!-- Dark Detailed Header Matching Screenshots -->
+            <div class="bg-[#191828] text-white px-5 py-3 flex items-center justify-between border-b border-white/10 select-none">
+                <!-- Navigation Tabs (Overview, Headings, Links, Images, Schema, Social, Advanced) -->
+                <nav class="flex items-center space-x-1 sm:space-x-3 text-xs overflow-x-auto">
+                    <button onclick="switchModalTab('overview')" id="modTab-overview" class="px-2.5 py-1.5 rounded-lg text-white font-semibold flex items-center gap-1.5 transition bg-white/10">
+                        <i class="fas fa-book-open"></i> Overview
+                    </button>
+                    <button onclick="switchModalTab('headings')" id="modTab-headings" class="px-2.5 py-1.5 rounded-lg text-gray-300 hover:text-white font-semibold flex items-center gap-1.5 transition">
+                        <i class="fas fa-heading"></i> Headings
+                    </button>
+                    <button onclick="switchModalTab('links')" id="modTab-links" class="px-2.5 py-1.5 rounded-lg text-gray-300 hover:text-white font-semibold flex items-center gap-1.5 transition">
+                        <i class="fas fa-link"></i> Links
+                    </button>
+                    <button onclick="switchModalTab('images')" id="modTab-images" class="px-2.5 py-1.5 rounded-lg text-gray-300 hover:text-white font-semibold flex items-center gap-1.5 transition">
+                        <i class="fas fa-image"></i> Images
+                    </button>
+                    <button onclick="switchModalTab('schema')" id="modTab-schema" class="px-2.5 py-1.5 rounded-lg text-gray-300 hover:text-white font-semibold flex items-center gap-1.5 transition">
+                        <i class="fas fa-code"></i> Schema
+                    </button>
+                    <button onclick="switchModalTab('social')" id="modTab-social" class="px-2.5 py-1.5 rounded-lg text-gray-300 hover:text-white font-semibold flex items-center gap-1.5 transition">
+                        <i class="fas fa-share-nodes"></i> Social
+                    </button>
+                    <button onclick="switchModalTab('timeMachine')" id="modTab-timeMachine" class="px-2.5 py-1.5 rounded-lg text-amber-300 hover:text-white font-semibold flex items-center gap-1.5 transition">
+                        <i class="fas fa-clock-rotate-left"></i> Time Machine (Diff)
+                    </button>
+                </nav>
+
+                <div class="flex items-center gap-2 pl-2">
+                    <button onclick="closeDetailedModal()" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white flex items-center justify-center transition">
+                        <i class="fas fa-xmark text-sm"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Body Scrollable -->
+            <div class="flex-1 overflow-y-auto p-6 bg-slate-50 space-y-4" id="modalScrollBody">
+
+                <!-- 1. OVERVIEW TAB -->
+                <div id="modalContent-overview" class="space-y-4">
+                    <!-- Title Card -->
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="w-6 h-6 rounded-lg bg-indigo-50 text-[#6b6bf6] flex items-center justify-center text-xs"><i class="fas fa-pen-fancy"></i></span>
+                                <span class="text-xs font-bold text-slate-700 uppercase">Title</span>
+                            </div>
+                            <span id="ovTitleBadge" class="bg-emerald-50 text-emerald-600 text-xs px-2 py-0.5 rounded-full font-semibold">✓ 0 characters</span>
+                        </div>
+                        <p id="ovTitleText" class="text-sm font-semibold text-slate-800 leading-snug">--</p>
+                    </div>
+
+                    <!-- Description Card -->
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="w-6 h-6 rounded-lg bg-indigo-50 text-[#6b6bf6] flex items-center justify-center text-xs"><i class="fas fa-message"></i></span>
+                                <span class="text-xs font-bold text-slate-700 uppercase">Description</span>
+                            </div>
+                            <span id="ovDescBadge" class="bg-emerald-50 text-emerald-600 text-xs px-2 py-0.5 rounded-full font-semibold">✓ 0 characters</span>
+                        </div>
+                        <p id="ovDescText" class="text-xs text-slate-600 leading-relaxed">--</p>
+                    </div>
+
+                    <!-- URL Card -->
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="w-6 h-6 rounded-lg bg-indigo-50 text-[#6b6bf6] flex items-center justify-center text-xs"><i class="fas fa-link"></i></span>
+                                <span class="text-xs font-bold text-slate-700 uppercase">URL</span>
+                            </div>
+                            <span id="ovUrlIndexBadge" class="bg-emerald-50 text-emerald-600 text-xs px-2 py-0.5 rounded-full font-semibold">✓ Indexable</span>
+                        </div>
+                        <p id="ovUrlText" class="text-xs text-slate-600 font-mono break-all">--</p>
+                    </div>
+
+                    <!-- Canonical Card -->
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="w-6 h-6 rounded-lg bg-indigo-50 text-[#6b6bf6] flex items-center justify-center text-xs"><i class="fas fa-bullseye"></i></span>
+                                <span class="text-xs font-bold text-slate-700 uppercase">Canonical</span>
+                            </div>
+                            <span id="ovCanonicalBadge" class="bg-emerald-50 text-emerald-600 text-xs px-2 py-0.5 rounded-full font-semibold">✓ Self-referencing</span>
+                        </div>
+                        <p id="ovCanonicalText" class="text-xs text-slate-600 font-mono break-all">--</p>
+                    </div>
+
+                    <!-- Robots Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="w-6 h-6 rounded-lg bg-indigo-50 text-[#6b6bf6] flex items-center justify-center text-xs"><i class="fas fa-tag"></i></span>
+                                <span class="text-xs font-bold text-slate-700 uppercase">Robots Tag</span>
+                            </div>
+                            <p id="ovRobotsText" class="text-xs font-mono font-semibold text-slate-800">INDEX,FOLLOW</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="w-6 h-6 rounded-lg bg-indigo-50 text-[#6b6bf6] flex items-center justify-center text-xs"><i class="fas fa-server"></i></span>
+                                <span class="text-xs font-bold text-slate-700 uppercase">X-Robots-Tag</span>
+                            </div>
+                            <p id="ovXRobotsText" class="text-xs font-mono font-semibold text-slate-500">Missing</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                            <div class="flex items-center justify-between gap-2 mb-1">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="w-6 h-6 rounded-lg bg-indigo-50 text-[#6b6bf6] flex items-center justify-center text-xs"><i class="fas fa-shield-halved"></i></span>
+                                    <span class="text-xs font-bold text-slate-700 uppercase">Robots.txt</span>
+                                </div>
+                                <span id="ovRobotsTxtBadge" class="bg-emerald-50 text-emerald-600 text-[10px] px-2 py-0.5 rounded-full font-bold">Allowed</span>
+                            </div>
+                            <p id="ovRobotsTxtRule" class="text-xs font-mono text-slate-600 truncate">No crawl restriction</p>
+                        </div>
+                    </div>
+
+                    <!-- Keywords & Word Count Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="w-6 h-6 rounded-lg bg-indigo-50 text-[#6b6bf6] flex items-center justify-center text-xs"><i class="fas fa-bolt"></i></span>
+                                <span class="text-xs font-bold text-slate-700 uppercase">Keywords</span>
+                            </div>
+                            <p id="ovKeywordsText" class="text-xs text-slate-600 italic">None specified</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="w-6 h-6 rounded-lg bg-indigo-50 text-[#6b6bf6] flex items-center justify-center text-xs"><i class="fas fa-file-word"></i></span>
+                                <span class="text-xs font-bold text-slate-700 uppercase">Word Count</span>
+                            </div>
+                            <p id="ovWordCountText" class="text-lg font-bold text-slate-900">0</p>
+                        </div>
+                    </div>
+
+                    <!-- Wayback Archive & Age Intelligence Card -->
+                    <div class="bg-gradient-to-br from-amber-50 to-orange-50/50 p-4 rounded-xl border border-amber-200/80 shadow-sm space-y-2">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="w-6 h-6 rounded-lg bg-amber-500 text-white flex items-center justify-center text-xs"><i class="fas fa-landmark"></i></span>
+                                <span class="text-xs font-bold text-amber-900 uppercase">Wayback Machine & Historical Age</span>
+                            </div>
+                            <span id="ovWaybackBadge" class="bg-amber-100 text-amber-800 text-xs px-2.5 py-0.5 rounded-full font-semibold">Loading age...</span>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 text-xs">
+                            <div>
+                                <span class="text-slate-500 block text-[11px]">First Indexed (Age):</span>
+                                <strong id="ovFirstSeenText" class="text-slate-800 font-mono">--</strong>
+                            </div>
+                            <div>
+                                <span class="text-slate-500 block text-[11px]">Latest Snapshot:</span>
+                                <strong id="ovLatestSnapText" class="text-slate-800 font-mono">--</strong>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3 pt-2 border-t border-amber-200/60">
+                            <a id="ovWaybackLink" href="#" target="_blank" class="text-xs text-[#6b6bf6] hover:underline font-bold flex items-center gap-1">
+                                <i class="fas fa-arrow-up-right-from-square text-[10px]"></i> View on Archive.org
+                            </a>
+                            <span class="text-slate-300">•</span>
+                            <a id="ovSaveNowLink" href="#" target="_blank" class="text-xs text-amber-700 hover:underline font-bold flex items-center gap-1">
+                                <i class="fas fa-floppy-disk text-[10px]"></i> Save Page Now
+                            </a>
+                            <span class="text-slate-300">•</span>
+                            <button onclick="switchModalTab('timeMachine'); runWaybackDiff();" class="text-xs text-indigo-600 hover:underline font-bold flex items-center gap-1">
+                                <i class="fas fa-clock-rotate-left text-[10px]"></i> Compare Snapshots (Diff)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. HEADINGS TAB -->
+                <div id="modalContent-headings" class="hidden space-y-4">
+                    <div class="flex items-center justify-between bg-white p-3.5 rounded-xl border border-slate-200">
+                        <div class="flex items-center gap-4 text-xs font-semibold text-slate-600">
+                            <span>H1: <strong id="hCount1" class="text-slate-900">0</strong></span>
+                            <span>H2: <strong id="hCount2" class="text-slate-900">0</strong></span>
+                            <span>H3: <strong id="hCount3" class="text-slate-900">0</strong></span>
+                            <span>H4: <strong id="hCount4" class="text-slate-900">0</strong></span>
+                        </div>
+                        <button onclick="copyHeadingsOutline()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition">
+                            <i class="fas fa-copy"></i> Copy
+                        </button>
+                    </div>
+
+                    <div id="headingsTreeContainer" class="bg-white p-5 rounded-xl border border-slate-200 space-y-2.5">
+                        <!-- Headings list with tags -->
+                    </div>
+                </div>
+
+                <!-- 3. LINKS TAB -->
+                <div id="modalContent-links" class="hidden space-y-4">
+                    <!-- Stat boxes -->
+                    <div class="grid grid-cols-4 gap-3 text-center">
+                        <div class="bg-white p-3 rounded-xl border border-slate-200">
+                            <p class="text-[11px] font-bold text-[#6b6bf6] uppercase">Total Links</p>
+                            <p id="lkTotalCount" class="text-xl font-bold text-slate-800 mt-0.5">0</p>
+                        </div>
+                        <div class="bg-white p-3 rounded-xl border border-slate-200">
+                            <p class="text-[11px] font-bold text-purple-600 uppercase">Unique</p>
+                            <p id="lkUniqueCount" class="text-xl font-bold text-slate-800 mt-0.5">0</p>
+                        </div>
+                        <div class="bg-white p-3 rounded-xl border border-slate-200">
+                            <p class="text-[11px] font-bold text-blue-600 uppercase">Internal</p>
+                            <p id="lkInternalCount" class="text-xl font-bold text-slate-800 mt-0.5">0</p>
+                        </div>
+                        <div class="bg-white p-3 rounded-xl border border-slate-200">
+                            <p class="text-[11px] font-bold text-amber-600 uppercase">External</p>
+                            <p id="lkExternalCount" class="text-xl font-bold text-slate-800 mt-0.5">0</p>
+                        </div>
+                    </div>
+
+                    <!-- Links subtabs -->
+                    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                        <div class="flex border-b border-slate-200 bg-slate-50 px-4 pt-2 gap-4">
+                            <button onclick="switchLinksSubtab('internal')" id="lkSubTab-internal" class="py-2 text-xs font-bold border-b-2 border-[#6b6bf6] text-[#6b6bf6]">
+                                Internal Links (<span id="internalSubCount">0</span>)
+                            </button>
+                            <button onclick="switchLinksSubtab('external')" id="lkSubTab-external" class="py-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800">
+                                External Links (<span id="externalSubCount">0</span>)
+                            </button>
+                        </div>
+                        <div id="linksListContainer" class="p-4 max-h-96 overflow-y-auto divide-y divide-slate-100 space-y-2">
+                            <!-- Link items -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. IMAGES TAB -->
+                <div id="modalContent-images" class="hidden space-y-4">
+                    <div class="grid grid-cols-3 gap-3 text-center">
+                        <div class="bg-white p-3 rounded-xl border border-slate-200">
+                            <p class="text-[11px] font-bold text-slate-500 uppercase">Total Images</p>
+                            <p id="imgTotalCount" class="text-xl font-bold text-slate-800 mt-0.5">0</p>
+                        </div>
+                        <div class="bg-white p-3 rounded-xl border border-slate-200">
+                            <p class="text-[11px] font-bold text-emerald-600 uppercase">With Alt Text</p>
+                            <p id="imgWithAltCount" class="text-xl font-bold text-emerald-600 mt-0.5">0</p>
+                        </div>
+                        <div class="bg-white p-3 rounded-xl border border-slate-200">
+                            <p class="text-[11px] font-bold text-rose-600 uppercase">Missing Alt</p>
+                            <p id="imgMissingAltCount" class="text-xl font-bold text-rose-600 mt-0.5">0</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
+                        <h4 class="text-xs font-bold text-slate-700 uppercase">Images Missing Alt Attribute</h4>
+                        <div id="imagesMissingContainer" class="space-y-2 max-h-80 overflow-y-auto">
+                            <!-- Missing Alt Items -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. SCHEMA & HREFLANG TAB -->
+                <div id="modalContent-schema" class="hidden space-y-4">
+                    <!-- Schemas Detected -->
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-2.5">
+                        <h4 class="text-xs font-bold text-slate-700 uppercase flex items-center gap-2">
+                            <i class="fas fa-sitemap text-indigo-500"></i> Schema.org Structured Data
+                        </h4>
+                        <div id="schemaListContainer" class="flex flex-wrap gap-2">
+                            <!-- Schema badges -->
+                        </div>
+                    </div>
+
+                    <!-- Hreflang Table -->
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-2.5">
+                        <h4 class="text-xs font-bold text-slate-700 uppercase flex items-center gap-2">
+                            <i class="fas fa-language text-indigo-500"></i> Hreflang Language Annotations
+                        </h4>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left">
+                                <thead class="bg-slate-50 border-b border-slate-200 font-bold text-slate-600">
+                                    <tr>
+                                        <th class="py-2 px-3">Language</th>
+                                        <th class="py-2 px-3">Target URL</th>
+                                        <th class="py-2 px-3 text-center">Status</th>
+                                        <th class="py-2 px-3 text-center">Back Ref</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="hreflangTableBody" class="divide-y divide-slate-100 font-mono">
+                                    <!-- Hreflang rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. SOCIAL TAB (FACEBOOK & TWITTER PREVIEW CARDS) -->
+                <div id="modalContent-social" class="hidden space-y-4">
+                    <!-- Facebook / LinkedIn Open Graph Card -->
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-2">
+                        <h4 class="text-xs font-bold text-slate-700 uppercase flex items-center gap-2">
+                            <i class="fab fa-facebook text-blue-600"></i> Facebook / LinkedIn Card Preview
+                        </h4>
+                        <div class="border border-slate-200 rounded-xl overflow-hidden max-w-lg bg-white shadow-sm">
+                            <div class="w-full h-48 bg-slate-100 flex items-center justify-center overflow-hidden">
+                                <img id="socOgImg" src="" alt="OG Image" class="w-full h-full object-cover hidden">
+                                <span id="socOgImgPlaceholder" class="text-xs text-slate-400"><i class="fas fa-image text-2xl mb-1 block text-center"></i> No og:image detected</span>
+                            </div>
+                            <div class="p-3.5 space-y-1 bg-[#f9fafb]">
+                                <p id="socOgDomain" class="text-[10px] uppercase font-bold text-slate-400">DOMAIN.COM</p>
+                                <p id="socOgTitle" class="text-sm font-bold text-slate-900 leading-snug line-clamp-2">--</p>
+                                <p id="socOgDesc" class="text-xs text-slate-500 line-clamp-2">--</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Twitter Card Preview -->
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 space-y-2">
+                        <h4 class="text-xs font-bold text-slate-700 uppercase flex items-center gap-2">
+                            <i class="fab fa-x-twitter text-slate-900"></i> Twitter / X Card Preview
+                        </h4>
+                        <div class="border border-slate-200 rounded-2xl overflow-hidden max-w-lg bg-white shadow-sm">
+                            <div class="w-full h-48 bg-slate-100 flex items-center justify-center overflow-hidden">
+                                <img id="socTwImg" src="" alt="Twitter Image" class="w-full h-full object-cover hidden">
+                                <span id="socTwImgPlaceholder" class="text-xs text-slate-400"><i class="fas fa-image text-2xl mb-1 block text-center"></i> No twitter:image detected</span>
+                            </div>
+                            <div class="p-3.5 space-y-1">
+                                <p id="socTwTitle" class="text-sm font-bold text-slate-900 leading-snug line-clamp-2">--</p>
+                                <p id="socTwDesc" class="text-xs text-slate-500 line-clamp-2">--</p>
+                                <p id="socTwSite" class="text-[11px] text-slate-400 font-mono">--</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 7. TIME MACHINE / WAYBACK DIFF TAB -->
+                <div id="modalContent-timeMachine" class="hidden space-y-4">
+                    <!-- Top Info Card -->
+                    <div class="bg-gradient-to-r from-slate-900 to-[#191828] text-white p-4 rounded-xl shadow-sm flex flex-wrap items-center justify-between gap-4">
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <span class="bg-amber-500/20 border border-amber-400/30 text-amber-300 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                                    Archive.org Memory
+                                </span>
+                                <span id="tmFirstSeenBadge" class="text-xs text-slate-300 font-mono">Loading history...</span>
+                            </div>
+                            <p id="tmSnapshotDate" class="text-sm font-semibold text-slate-100">Comparing Live Page vs Archive.org Historical Snapshot</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <a id="tmArchiveLink" href="#" target="_blank" class="text-xs bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg flex items-center gap-1 transition">
+                                <i class="fas fa-arrow-up-right-from-square text-[10px]"></i> View on Wayback
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Preset Selector Bar -->
+                    <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-bold text-slate-600 uppercase">Compare Against:</span>
+                            <select id="tmPresetSelect" onchange="runWaybackDiff()" class="text-xs font-semibold bg-slate-100 border border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#6b6bf6]">
+                                <option value="earliest" selected>Earliest Capture (First Seen)</option>
+                                <option value="1year">1 Year Ago Snapshot</option>
+                                <option value="3years">3 Years Ago Snapshot</option>
+                                <option value="latest">Latest Archived Snapshot</option>
+                            </select>
+                        </div>
+                        <button onclick="runWaybackDiff()" id="tmRefreshBtn" class="text-xs bg-[#6b6bf6] hover:bg-[#5858e6] text-white px-3.5 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition">
+                            <i class="fas fa-arrows-rotate"></i> Re-Calculate Diff
+                        </button>
+                    </div>
+
+                    <!-- Loading State -->
+                    <div id="tmLoadingState" class="hidden py-12 text-center space-y-3 bg-white rounded-xl border border-slate-200">
+                        <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-500 border-t-transparent"></div>
+                        <p class="text-xs text-slate-600 font-medium">Fetching historical raw DOM from Archive.org & analyzing differences...</p>
+                    </div>
+
+                    <!-- Diff Container -->
+                    <div id="tmDiffContainer" class="space-y-4">
+                        <!-- Dynamic Diff Cards rendered by JavaScript -->
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="bg-white border-t border-slate-200 px-6 py-3 flex items-center justify-between text-xs text-slate-500">
+                <span>Detailed On-Page Inspector • Powered by Cheerio Engine & Wayback Machine API</span>
+                <button onclick="closeDetailedModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-1.5 rounded-lg font-semibold transition">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 404 Resurrect Modal -->
+    <div id="resurrectModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-3 sm:p-6 transition-all">
+        <div class="bg-white w-full max-w-2xl max-h-[90vh] rounded-2xl flex flex-col overflow-hidden shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div class="bg-[#191828] text-white px-5 py-3.5 flex items-center justify-between border-b border-white/10">
+                <div class="flex items-center gap-2">
+                    <span class="text-lg">🧟</span>
+                    <h3 class="text-sm font-bold">Wayback Machine Content Resurrector</h3>
+                </div>
+                <button onclick="closeResurrectModal()" class="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white flex items-center justify-center transition">
+                    <i class="fas fa-xmark text-sm"></i>
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50" id="resurrectModalBody">
+                <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-bold text-emerald-900">Successfully Resurrected from Archive.org</p>
+                        <p id="resurrectDateText" class="text-[11px] text-emerald-700">Snapshot: --</p>
+                    </div>
+                    <a id="resurrectWaybackLink" href="#" target="_blank" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-lg transition">
+                        Open Snapshot
+                    </a>
+                </div>
+
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
+                    <p class="text-[11px] font-bold text-slate-500 uppercase">Recovered Page Title</p>
+                    <p id="resurrectTitle" class="text-sm font-bold text-slate-900">--</p>
+                </div>
+
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
+                    <p class="text-[11px] font-bold text-slate-500 uppercase">Recovered H1 Tag</p>
+                    <p id="resurrectH1" class="text-sm font-semibold text-slate-800">--</p>
+                </div>
+
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1">
+                    <p class="text-[11px] font-bold text-slate-500 uppercase">Recovered Meta Description</p>
+                    <p id="resurrectDesc" class="text-xs text-slate-600 leading-relaxed">--</p>
+                </div>
+
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2">
+                    <div class="flex items-center justify-between">
+                        <p class="text-[11px] font-bold text-slate-500 uppercase">Recovered Body Content Snippet</p>
+                        <button onclick="copyResurrectedText()" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-[#6b6bf6] font-bold px-2.5 py-1 rounded-lg transition">
+                            <i class="fas fa-copy mr-1"></i> Copy Content
+                        </button>
+                    </div>
+                    <div id="resurrectText" class="text-xs text-slate-700 bg-slate-50 p-3 rounded-lg max-h-48 overflow-y-auto font-sans leading-relaxed border border-slate-100">--</div>
+                </div>
+
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2">
+                    <p class="text-[11px] font-bold text-slate-500 uppercase">Suggested 301 Redirect Destination</p>
+                    <div class="flex gap-2">
+                        <input type="text" id="resurrectRedirectTarget" class="flex-1 text-xs font-mono p-2 bg-slate-50 border border-slate-200 rounded-lg">
+                        <button onclick="navigator.clipboard.writeText(document.getElementById('resurrectRedirectTarget').value); alert('Redirect target copied!');" class="text-xs bg-slate-800 hover:bg-slate-900 text-white px-3 py-1 rounded-lg font-semibold">Copy</button>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white border-t border-slate-200 px-6 py-3 flex justify-end">
+                <button onclick="closeResurrectModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-1.5 rounded-lg font-semibold text-xs transition">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ─────────────────────────────────────────────────────────────
+         COLLAPSIBLE LIVE DEBUG CONSOLE (FLOATING DRAWER)
+         ───────────────────────────────────────────────────────────── -->
+    <div id="debugConsoleDrawer" class="fixed bottom-0 left-0 right-0 z-40 bg-[#0f172a] text-slate-200 border-t border-slate-700 shadow-2xl transition-all duration-300 transform translate-y-full max-h-96 flex flex-col">
+        <!-- Console Header -->
+        <div class="bg-[#1e293b] px-4 py-2.5 flex items-center justify-between border-b border-slate-700">
+            <div class="flex items-center gap-2">
+                <i class="fas fa-terminal text-amber-400 text-xs"></i>
+                <span class="text-xs font-bold tracking-wider uppercase text-slate-200">Execution Debugger & Network Trace</span>
+                <span class="text-[10px] bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 px-2 py-0.5 rounded-full font-mono">Real-time</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="clearDebugLog()" class="text-xs text-slate-400 hover:text-slate-200 px-2 py-1 rounded hover:bg-slate-700 transition">
+                    <i class="fas fa-eraser mr-1"></i> Clear
+                </button>
+                <button onclick="downloadDebugReport()" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded font-semibold transition">
+                    <i class="fas fa-download mr-1"></i> Download Log (JSON)
+                </button>
+                <button onclick="toggleDebugConsole()" class="text-slate-400 hover:text-white px-2 py-1">
+                    <i class="fas fa-chevron-down text-xs"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Console Stream Output -->
+        <div id="debugLogContainer" class="p-4 font-mono text-[11px] overflow-y-auto space-y-1.5 flex-1 select-text bg-[#0b0f19]">
+            <div class="text-slate-500 italic">[SYSTEM] Debug logger initialized. Ready to record fetch traces...</div>
+        </div>
+    </div>
+
+    <!-- ─────────────────────────────────────────────────────────────
+         APPLICATION JAVASCRIPT
+         ───────────────────────────────────────────────────────────── -->
+    <script>
+        // Global Application State
+        let auditResults = [];
+        let debugLogs = [];
+        let activeJobId = null;
+        let eventSource = null;
+        let timerInterval = null;
+        let auditStartTime = null;
+        let selectedAuditIndex = null;
+
+        // On Page Load
+        document.addEventListener('DOMContentLoaded', () => {
+            const urlsEl = document.getElementById('urlsInput');
+            if (urlsEl) {
+                urlsEl.addEventListener('input', updateUrlCount);
+                updateUrlCount();
+            }
+
+            // Drag and drop setup for file tab
+            const dropZone = document.getElementById('fileDropZone');
+            if (dropZone) {
+                ['dragenter', 'dragover'].forEach(name => {
+                    dropZone.addEventListener(name, (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        dropZone.classList.add('border-[#6b6bf6]', 'bg-indigo-50/50');
+                    });
+                });
+                ['dragleave', 'drop'].forEach(name => {
+                    dropZone.addEventListener(name, (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        dropZone.classList.remove('border-[#6b6bf6]', 'bg-indigo-50/50');
+                    });
+                });
+                dropZone.addEventListener('drop', (e) => {
+                    if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+                        parseAndLoadFile(e.dataTransfer.files[0]);
+                    }
+                });
+            }
+        });
+
+        // Tab Switching in Input Box (Keeps all 4 states preserved!)
+        let currentActiveTab = 'paste';
+        function switchInputTab(tab) {
+            currentActiveTab = tab;
+            ['paste', 'sitemap', 'file', 'reclaim'].forEach(t => {
+                const el = document.getElementById(`tab-${t}`);
+                const btn = document.getElementById(`tabBtn-${t}`);
+                if (el) el.classList.add('hidden');
+                if (btn) {
+                    btn.className = 'px-4 py-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800 rounded-t-lg flex items-center gap-2 transition';
+                }
+            });
+            const activeEl = document.getElementById(`tab-${tab}`);
+            const activeBtn = document.getElementById(`tabBtn-${tab}`);
+            if (activeEl) activeEl.classList.remove('hidden');
+            if (activeBtn) {
+                activeBtn.className = 'px-4 py-2.5 text-sm font-semibold border-b-2 border-[#6b6bf6] text-[#6b6bf6] bg-indigo-50/50 rounded-t-lg flex items-center gap-2 transition';
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // 1. PASTE URLs ENGINE
+        // ─────────────────────────────────────────────────────────────
+        function updateUrlCount() {
+            const text = document.getElementById('urlsInput').value;
+            const count = text.split('\n').map(u => u.trim()).filter(Boolean).length;
+            document.getElementById('urlCountBadge').textContent = `${count} URL${count === 1 ? '' : 's'} detected`;
+        }
+
+        function loadSampleUrls() {
+            const samples = [
+                'https://yatradham.org/yatradham-destinations/gujarat/dwarka.html',
+                'https://detailed.com/',
+                'https://detailed.com/extension/',
+                'https://detailed.com/50/',
+                'https://detailed.com/wiki/'
+            ];
+            document.getElementById('urlsInput').value = samples.join('\n');
+            updateUrlCount();
+            addDebugEntry('INFO', 'Loaded 5 sample destination and SEO audit URLs into Paste tab.');
+        }
+
+        function clearPasteUrls() {
+            document.getElementById('urlsInput').value = '';
+            updateUrlCount();
+            addDebugEntry('INFO', 'Cleared Paste URLs textarea.');
+        }
+
+        function startPasteAudit() {
+            const urls = document.getElementById('urlsInput').value
+                .split('\n')
+                .map(u => u.trim())
+                .filter(Boolean);
+
+            if (urls.length === 0) {
+                alert('Please enter at least one URL in the Paste tab to audit.');
+                return;
+            }
+            const concurrency = parseInt(document.getElementById('concurrencySelect-paste')?.value || 5, 10);
+            executeBulkAudit(urls, 'Paste URLs', concurrency);
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // 2. SITEMAP.XML FETCHER ENGINE
+        // ─────────────────────────────────────────────────────────────
+        let currentSitemapData = { urls: [], subSitemaps: [] };
+        let currentDeclaredSitemaps = [];
+        let activeSitemapCategory = 'All';
+
+        function loadSitemapSample(url) {
+            document.getElementById('sitemapInput').value = url;
+            fetchSitemap(url);
+        }
+
+        function createCategoryFilterBtn(catName, count, isActive) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = isActive
+                ? 'text-[11px] font-semibold bg-indigo-600 text-white px-2.5 py-0.5 rounded-full transition shadow-xs cursor-pointer'
+                : 'text-[11px] font-semibold bg-white hover:bg-indigo-50 text-slate-700 border border-slate-200 px-2.5 py-0.5 rounded-full transition cursor-pointer';
+            btn.innerHTML = `${catName} <span class="opacity-75 font-mono text-[10px]">(${count})</span>`;
+            btn.onclick = () => {
+                activeSitemapCategory = catName;
+                const container = document.getElementById('sitemapCategoryFilters');
+                if (container) {
+                    Array.from(container.children).forEach(child => {
+                        if (child.innerText.startsWith(catName)) {
+                            child.className = 'text-[11px] font-semibold bg-indigo-600 text-white px-2.5 py-0.5 rounded-full transition shadow-xs cursor-pointer';
+                        } else {
+                            child.className = 'text-[11px] font-semibold bg-white hover:bg-indigo-50 text-slate-700 border border-slate-200 px-2.5 py-0.5 rounded-full transition cursor-pointer';
+                        }
+                    });
+                }
+                renderDeclaredSitemapsList();
+            };
+            return btn;
+        }
+
+        function renderDeclaredSitemapsList() {
+            const list = document.getElementById('declaredSitemapsList');
+            if (!list) return;
+            list.innerHTML = '';
+
+            const filtered = activeSitemapCategory === 'All'
+                ? currentDeclaredSitemaps
+                : currentDeclaredSitemaps.filter(s => s.category === activeSitemapCategory);
+
+            filtered.forEach(sm => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'text-[11px] font-mono bg-white hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border border-slate-200 hover:border-indigo-300 px-2.5 py-1 rounded-lg transition flex items-center gap-1.5 shadow-2xs cursor-pointer';
+                
+                const catColor = sm.category === 'Holidays' ? 'bg-amber-100 text-amber-800'
+                    : sm.category === 'Hotels' ? 'bg-blue-100 text-blue-800'
+                    : sm.category === 'Flights' ? 'bg-indigo-100 text-indigo-800'
+                    : sm.category === 'Activities' ? 'bg-emerald-100 text-emerald-800'
+                    : sm.category === 'Transit' ? 'bg-purple-100 text-purple-800'
+                    : sm.category === 'Coupons & Deals' ? 'bg-rose-100 text-rose-800'
+                    : 'bg-slate-100 text-slate-700';
+
+                btn.innerHTML = `
+                    <span class="text-[9px] font-bold px-1.5 py-0.2 rounded ${catColor}">${sm.category}</span>
+                    <span class="truncate max-w-[200px] sm:max-w-xs font-semibold">${sm.slug}</span>
+                    <i class="fas fa-arrow-right text-[9px] text-slate-400"></i>
+                `;
+                btn.title = `Click to load & parse ${sm.url}`;
+                btn.onclick = () => fetchSitemap(sm.url);
+                list.appendChild(btn);
+            });
+        }
+
+        function renderRobotsInspection(data) {
+            const card = document.getElementById('robotsInspectionCard');
+            if (!card) return;
+
+            const hasBots = data.aiBots && Object.keys(data.aiBots).length > 0;
+            const hasDeclared = data.declaredSitemaps && data.declaredSitemaps.length > 0;
+
+            if (!hasBots && !hasDeclared) {
+                card.classList.add('hidden');
+                return;
+            }
+
+            card.classList.remove('hidden');
+
+            // Domain Badge & Raw Link
+            let domain = '';
+            try {
+                const targetUrl = data.sitemapUrl || data.inputUrl || '';
+                domain = new URL(targetUrl).hostname.replace(/^www\./, '');
+            } catch {}
+            document.getElementById('robotsDomainBadge').textContent = domain || 'Live Domain';
+            const origin = (data.inputUrl && data.inputUrl.startsWith('http'))
+                ? new URL(data.inputUrl).origin
+                : `https://${domain}`;
+            document.getElementById('rawRobotsLink').href = `${origin}/robots.txt`;
+
+            // Render AI Bots Grid
+            const aiGrid = document.getElementById('aiBotsGrid');
+            if (aiGrid && data.aiBots) {
+                aiGrid.innerHTML = '';
+                const botKeys = ['OAI-SearchBot', 'GPTBot', 'Google-Extended', 'PerplexityBot'];
+                const displayKeys = botKeys.filter(k => data.aiBots[k]).length > 0 
+                    ? botKeys 
+                    : Object.keys(data.aiBots).slice(0, 4);
+
+                displayKeys.forEach(key => {
+                    const bot = data.aiBots[key];
+                    if (!bot) return;
+                    const cardEl = document.createElement('div');
+                    cardEl.className = 'bg-slate-800/80 border border-slate-700/80 rounded-lg p-2.5 flex flex-col justify-between';
+                    
+                    const badgeClass = bot.badgeColor === 'emerald'
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30'
+                        : bot.badgeColor === 'amber'
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-400/30'
+                        : 'bg-rose-500/20 text-rose-300 border-rose-400/30';
+
+                    const iconClass = bot.badgeColor === 'emerald'
+                        ? 'fa-circle-check text-emerald-400'
+                        : bot.badgeColor === 'amber'
+                        ? 'fa-triangle-exclamation text-amber-400'
+                        : 'fa-ban text-rose-400';
+
+                    cardEl.innerHTML = `
+                        <div>
+                            <div class="flex items-center justify-between gap-1 mb-1">
+                                <span class="text-[11px] font-bold text-slate-200 truncate" title="${bot.name}">${bot.name.split(' ')[0]}</span>
+                                <span class="text-[9px] px-1.5 py-0.2 rounded border font-mono ${badgeClass}">${bot.status}</span>
+                            </div>
+                            <p class="text-[10px] text-slate-400 truncate">${bot.purpose}</p>
+                        </div>
+                        <div class="mt-2 pt-1.5 border-t border-slate-700/60 flex items-center justify-between text-[10px] text-slate-400">
+                            <span class="flex items-center gap-1"><i class="fas ${iconClass} text-[9px]"></i> Rules:</span>
+                            <span class="font-mono text-slate-300 font-bold">${bot.disallowCount} Disallow</span>
+                        </div>
+                    `;
+                    aiGrid.appendChild(cardEl);
+                });
+            }
+
+            // Render Declared Sitemaps Container
+            const sitemapsContainer = document.getElementById('declaredSitemapsContainer');
+            if (sitemapsContainer) {
+                if (hasDeclared) {
+                    sitemapsContainer.classList.remove('hidden');
+                    currentDeclaredSitemaps = data.declaredSitemaps;
+                    document.getElementById('declaredSitemapsCountBadge').textContent = currentDeclaredSitemaps.length;
+
+                    // Build Category Filter Chips
+                    const cats = data.categories || {};
+                    const filterContainer = document.getElementById('sitemapCategoryFilters');
+                    filterContainer.innerHTML = '';
+
+                    const allPill = createCategoryFilterBtn('All', currentDeclaredSitemaps.length, activeSitemapCategory === 'All');
+                    filterContainer.appendChild(allPill);
+
+                    Object.keys(cats).sort().forEach(cat => {
+                        const pill = createCategoryFilterBtn(cat, cats[cat], activeSitemapCategory === cat);
+                        filterContainer.appendChild(pill);
+                    });
+
+                    renderDeclaredSitemapsList();
+                } else {
+                    sitemapsContainer.classList.add('hidden');
+                }
+            }
+        }
+
+        async function fetchSitemap(targetUrlOverride) {
+            const sitemapUrl = targetUrlOverride || document.getElementById('sitemapInput').value.trim();
+            if (!sitemapUrl) {
+                alert('Please enter a sitemap URL');
+                return;
+            }
+            document.getElementById('sitemapInput').value = sitemapUrl;
+
+            const btn = document.getElementById('btnFetchSitemap');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Fetching...';
+            addDebugEntry('INFO', `Fetching XML sitemap / robots.txt: ${sitemapUrl}`);
+
+            try {
+                const resp = await fetch('/api/extract-sitemap', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sitemapUrl, autoFetchSubSitemaps: true })
+                });
+                const data = await resp.json();
+
+                if (!resp.ok) throw new Error(data.error || 'Failed parsing sitemap');
+
+                currentSitemapData = data;
+                const total = (data.urls && data.urls.length) || 0;
+                const subCount = (data.subSitemaps && data.subSitemaps.length) || 0;
+
+                // Inspect Robots.txt & AI Crawlers if present in response
+                if ((data.declaredSitemaps && data.declaredSitemaps.length > 0) || data.aiBots) {
+                    renderRobotsInspection(data);
+                }
+
+                // Show Preview Card inside Tab 2
+                document.getElementById('sitemapPreviewCard').classList.remove('hidden');
+                const sourceLabel = data.sourceType === 'robots_txt'
+                    ? 'Robots.txt Declared Sitemaps'
+                    : data.sourceType === 'xml_sitemap_via_robots'
+                    ? 'XML Sitemap (via robots.txt)'
+                    : data.sourceType === 'html_sitemap'
+                    ? 'HTML Sitemap'
+                    : data.sourceType === 'html_page_links'
+                    ? 'Page Internal Links'
+                    : 'XML Sitemap';
+                document.getElementById('sitemapStatusBadge').innerHTML = `<i class="fas fa-circle-check"></i> <span>${total} URLs Discovered • <strong class="underline">${sourceLabel}</strong></span>`;
+                if (data.sitemapUrl && data.sitemapUrl !== sitemapUrl) {
+                    document.getElementById('sitemapInput').value = data.sitemapUrl;
+                }
+                document.getElementById('sitemapUrlsInput').value = (data.urls || []).join('\n');
+
+                const indexBadge = document.getElementById('sitemapIndexBadge');
+                const subContainer = document.getElementById('subSitemapsContainer');
+                const subList = document.getElementById('subSitemapsList');
+
+                if (data.isIndex && subCount > 0) {
+                    indexBadge.classList.remove('hidden');
+                    indexBadge.textContent = `Sitemap Index (${subCount} sub-sitemaps)`;
+                    subContainer.classList.remove('hidden');
+                    subList.innerHTML = '';
+
+                    data.subSitemaps.forEach(subUrl => {
+                        const pill = document.createElement('button');
+                        pill.className = 'text-[11px] font-mono bg-white hover:bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-lg transition flex items-center gap-1.5 shadow-2xs cursor-pointer';
+                        const slug = subUrl.split('/').pop() || subUrl;
+                        pill.innerHTML = `<i class="fas fa-file-code text-[10px]"></i> <span class="truncate max-w-xs">${slug}</span>`;
+                        pill.title = `Click to fetch ${subUrl}`;
+                        pill.onclick = () => fetchSitemap(subUrl);
+                        subList.appendChild(pill);
+                    });
+                } else {
+                    indexBadge.classList.add('hidden');
+                    subContainer.classList.add('hidden');
+                }
+
+                const startBtnText = document.getElementById('startBtn-sitemap-text');
+                if (startBtnText) {
+                    startBtnText.textContent = `Start Bulk Audit (${total} Sitemap URLs)`;
+                }
+
+                addDebugEntry('SUCCESS', `Sitemap fetched: ${total} URLs, ${subCount} sub-sitemaps, ${data.declaredSitemaps?.length || 0} declared.`);
+
+            } catch (err) {
+                addDebugEntry('ERROR', `Sitemap fetch failed: ${err.message}`);
+                alert(`Sitemap fetch error: ${err.message}`);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-cloud-arrow-down"></i> <span>Fetch Sitemap</span>';
+            }
+        }
+
+        function clearSitemapData() {
+            currentSitemapData = { urls: [], subSitemaps: [] };
+            currentDeclaredSitemaps = [];
+            activeSitemapCategory = 'All';
+            document.getElementById('sitemapUrlsInput').value = '';
+            document.getElementById('sitemapPreviewCard').classList.add('hidden');
+            document.getElementById('robotsInspectionCard')?.classList.add('hidden');
+            document.getElementById('declaredSitemapsContainer')?.classList.add('hidden');
+            addDebugEntry('INFO', 'Cleared Sitemap data.');
+        }
+
+        function startSitemapAudit() {
+            const urls = document.getElementById('sitemapUrlsInput').value
+                .split('\n')
+                .map(u => u.trim())
+                .filter(Boolean);
+
+            if (urls.length === 0) {
+                alert('No URLs found to audit. Please enter a sitemap URL and click "Fetch Sitemap" first.');
+                return;
+            }
+            const concurrency = parseInt(document.getElementById('concurrencySelect-sitemap')?.value || 5, 10);
+            executeBulkAudit(urls, 'Sitemap XML', concurrency);
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // 3. UPLOAD FILE ENGINE
+        // ─────────────────────────────────────────────────────────────
+        let currentUploadedFile = null;
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (file) parseAndLoadFile(file);
+        }
+
+        function parseAndLoadFile(file) {
+            currentUploadedFile = file;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                const lines = content.split(/\r?\n/);
+                const urls = [];
+
+                lines.forEach(line => {
+                    const match = line.match(/(https?:\/\/[^\s,;"']+)/);
+                    if (match) urls.push(match[1]);
+                });
+
+                const uniqueUrls = [...new Set(urls)];
+
+                if (uniqueUrls.length > 0) {
+                    document.getElementById('uploadedFileName').textContent = file.name;
+                    const sizeKb = (file.size / 1024).toFixed(1);
+                    document.getElementById('uploadedFileSize').textContent = `${sizeKb} KB • ${lines.length} lines parsed`;
+                    document.getElementById('fileUrlCountBadge').textContent = `${uniqueUrls.length} URLs Detected`;
+                    document.getElementById('fileUrlsInput').value = uniqueUrls.join('\n');
+                    document.getElementById('filePreviewCard').classList.remove('hidden');
+
+                    const startBtnText = document.getElementById('startBtn-file-text');
+                    if (startBtnText) {
+                        startBtnText.textContent = `Start Bulk Audit (${uniqueUrls.length} File URLs)`;
+                    }
+
+                    addDebugEntry('SUCCESS', `Parsed file ${file.name} - ${uniqueUrls.length} unique URLs.`);
+                } else {
+                    alert('Could not find any valid HTTP/HTTPS URLs in the uploaded file.');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function clearUploadedFile() {
+            currentUploadedFile = null;
+            document.getElementById('fileUpload').value = '';
+            document.getElementById('fileUrlsInput').value = '';
+            document.getElementById('filePreviewCard').classList.add('hidden');
+            addDebugEntry('INFO', 'Cleared uploaded file.');
+        }
+
+        function startFileAudit() {
+            const urls = document.getElementById('fileUrlsInput').value
+                .split('\n')
+                .map(u => u.trim())
+                .filter(Boolean);
+
+            if (urls.length === 0) {
+                alert('No URLs found to audit. Please choose a CSV/TXT file first.');
+                return;
+            }
+            const concurrency = parseInt(document.getElementById('concurrencySelect-file')?.value || 5, 10);
+            executeBulkAudit(urls, 'Uploaded File', concurrency);
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // 4. UNIFIED BULK AUDIT RUNNER (ACROSS ALL MODES)
+        // ─────────────────────────────────────────────────────────────
+        function setAuditButtonsLoading(isLoading) {
+            const pBtn = document.getElementById('startBtn-paste');
+            const sBtn = document.getElementById('startBtn-sitemap');
+            const fBtn = document.getElementById('startBtn-file');
+
+            if (isLoading) {
+                if (pBtn) { pBtn.disabled = true; pBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Auditing...</span>'; }
+                if (sBtn) { sBtn.disabled = true; sBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Auditing...</span>'; }
+                if (fBtn) { fBtn.disabled = true; fBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Auditing...</span>'; }
+            } else {
+                if (pBtn) { pBtn.disabled = false; pBtn.innerHTML = '<i class="fas fa-play"></i> <span>Start Bulk Audit</span>'; }
+                if (sBtn) { sBtn.disabled = false; sBtn.innerHTML = '<i class="fas fa-play"></i> <span id="startBtn-sitemap-text">Audit Sitemap URLs</span>'; }
+                if (fBtn) { fBtn.disabled = false; fBtn.innerHTML = '<i class="fas fa-play"></i> <span id="startBtn-file-text">Audit Uploaded URLs</span>'; }
+            }
+        }
+
+        async function executeBulkAudit(urls, sourceName = 'Manual', concurrency = 5) {
+            if (!urls || urls.length === 0) {
+                alert(`No URLs found to audit for ${sourceName}.`);
+                return;
+            }
+
+            // Reset UI
+            auditResults = [];
+            document.getElementById('resultsTableBody').innerHTML = '';
+            document.getElementById('resultsSection').classList.remove('hidden');
+            document.getElementById('progressSection').classList.remove('hidden');
+
+            setAuditButtonsLoading(true);
+
+            // Smooth scroll to progress
+            document.getElementById('progressSection').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+            // Timer
+            auditStartTime = Date.now();
+            clearInterval(timerInterval);
+            timerInterval = setInterval(updateTimer, 1000);
+
+            addDebugEntry('INFO', `Starting bulk audit for ${urls.length} URLs from [${sourceName}] (Concurrency: ${concurrency})`);
+
+            try {
+                // Initialize Job
+                const startResp = await fetch('/api/audit-start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ urls, concurrency })
+                });
+                const startData = await startResp.json();
+                if (!startResp.ok) throw new Error(startData.error || 'Failed creating audit job');
+
+                activeJobId = startData.jobId;
+
+                // Connect to Server-Sent Events (SSE) Stream
+                if (eventSource) eventSource.close();
+                eventSource = new EventSource(`/api/audit-stream/${activeJobId}`);
+
+                eventSource.onmessage = function(event) {
+                    const msg = JSON.parse(event.data);
+
+                    if (msg.type === 'start_url') {
+                        document.getElementById('currentProcessingUrl').textContent = `Fetching: ${msg.url}`;
+                    } else if (msg.type === 'result') {
+                        handleAuditResult(msg.result, msg.completedCount, msg.total);
+                    } else if (msg.type === 'done') {
+                        finishAudit();
+                    }
+                };
+
+                eventSource.onerror = function() {
+                    addDebugEntry('WARN', 'SSE Stream closed or completed.');
+                    finishAudit();
+                };
+
+            } catch (err) {
+                addDebugEntry('ERROR', `Audit start failed: ${err.message}`);
+                alert(`Error starting audit: ${err.message}`);
+                finishAudit();
+            }
+        }
+
+        // Backward compatibility for generic start button
+        function startBulkAudit() {
+            startPasteAudit();
+        }
+
+        // Handle Each Real-Time Result
+        function handleAuditResult(item, completed, total) {
+            auditResults.push(item);
+
+            // Update Progress Bar
+            const percent = Math.round((completed / total) * 100);
+            document.getElementById('progressBarFill').style.width = `${percent}%`;
+            document.getElementById('progressCount').textContent = `${completed} / ${total}`;
+
+            // Counters
+            const successCount = auditResults.filter(r => r.success).length;
+            const failedCount = auditResults.length - successCount;
+            document.getElementById('statSuccess').textContent = successCount;
+            document.getElementById('statFailed').textContent = failedCount;
+
+            // Debug Logging
+            if (item.success) {
+                const data = item.data;
+                addDebugEntry('SUCCESS', `[${data.statusCode}] ${data.url} (${data.responseTimeMs}ms) - ${data.headings.list.length} Headings, ${data.links.total} Links, ${data.overview.wordCount} Words`);
+            } else {
+                addDebugEntry('ERROR', `[FAILED] ${item.url} - ${item.error.code}: ${item.error.message}`);
+            }
+
+            // Append Row to Table
+            appendResultRow(item, auditResults.length - 1);
+            document.getElementById('totalResultsBadge').textContent = `${auditResults.length} URLs`;
+        }
+
+        // Append Row in Table
+        function appendResultRow(item, index) {
+            const tbody = document.getElementById('resultsTableBody');
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-slate-50/80 transition cursor-pointer';
+            tr.onclick = () => openDetailedModal(index);
+
+            if (item.success) {
+                const d = item.data;
+                const statusColor = d.statusCode === 200 ? 'text-emerald-600 bg-emerald-50' : 'text-amber-600 bg-amber-50';
+                const indexColor = d.overview.indexable ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50';
+                const canonColor = d.overview.canonicalStatus === 'Self-referencing' ? 'text-emerald-600 bg-emerald-50' : 'text-amber-600 bg-amber-50';
+
+                tr.innerHTML = `
+                    <td class="py-3 px-3.5 text-center font-bold text-slate-400">${index + 1}</td>
+                    <td class="py-3 px-3">
+                        <span class="px-2 py-0.5 rounded-full text-[11px] font-bold ${statusColor}">${d.statusCode}</span>
+                    </td>
+                    <td class="py-3 px-3 max-w-xs">
+                        <p class="font-bold text-slate-900 truncate" title="${d.overview.title}">${d.overview.title || '<span class="text-slate-400 italic">No Title</span>'}</p>
+                        <p class="text-[11px] text-slate-400 truncate" title="${d.url}">${d.url}</p>
+                    </td>
+                    <td class="py-3 px-3">
+                        <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold ${indexColor}" title="${d.overview.indexableReason || ''}">
+                            ${d.overview.indexable ? '✓ Indexable' : (d.overview.robotsTxt?.status === 'Blocked' ? '✕ Blocked (Robots)' : '✕ Noindex')}
+                        </span>
+                    </td>
+                    <td class="py-3 px-3">
+                        <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold ${canonColor}">
+                            ${d.overview.canonicalStatus}
+                        </span>
+                    </td>
+                    <td class="py-3 px-3">
+                        <span class="font-mono text-slate-600">H1: <strong>${d.headings.counts.h1}</strong></span>
+                        <span class="text-slate-400 text-[10px] ml-1">Total: ${d.headings.list.length}</span>
+                    </td>
+                    <td class="py-3 px-3">
+                        <span class="text-blue-600 font-bold">${d.links.internalCount} Int</span> / 
+                        <span class="text-amber-600 font-bold">${d.links.externalCount} Ext</span>
+                    </td>
+                    <td class="py-3 px-3 text-right font-mono font-bold text-slate-700">
+                        ${d.overview.wordCount.toLocaleString()}
+                    </td>
+                    <td class="py-3 px-3 text-center">
+                        <button onclick="event.stopPropagation(); openDetailedModal(${index})" class="bg-[#6b6bf6]/10 hover:bg-[#6b6bf6] text-[#6b6bf6] hover:text-white font-bold text-[11px] px-2.5 py-1 rounded-lg transition">
+                            Inspect
+                        </button>
+                    </td>
+                `;
+            } else {
+                tr.innerHTML = `
+                    <td class="py-3 px-3.5 text-center font-bold text-slate-400">${index + 1}</td>
+                    <td class="py-3 px-3">
+                        <span class="px-2 py-0.5 rounded-full text-[11px] font-bold text-rose-600 bg-rose-50">ERROR</span>
+                    </td>
+                    <td class="py-3 px-3 max-w-xs" colspan="3">
+                        <p class="text-rose-600 font-bold">${item.error.code}: ${item.error.message}</p>
+                        <p class="text-[11px] text-slate-400 truncate">${item.url}</p>
+                    </td>
+                    <td class="py-3 px-3 text-slate-400" colspan="3">--</td>
+                    <td class="py-3 px-3 text-center">
+                        <button onclick="event.stopPropagation(); resurrectDeadUrl('${item.url}')" class="bg-purple-100 hover:bg-purple-200 text-purple-800 font-bold text-[11px] px-2.5 py-1 rounded-lg transition mr-1.5 shadow-sm">
+                            🧟 Resurrect
+                        </button>
+                        <button onclick="event.stopPropagation(); retrySingleUrl('${item.url}')" class="bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold text-[11px] px-2.5 py-1 rounded-lg transition">
+                            Retry
+                        </button>
+                    </td>
+                `;
+            }
+            tbody.appendChild(tr);
+        }
+
+        // Finish Audit
+        function finishAudit() {
+            clearInterval(timerInterval);
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+            setAuditButtonsLoading(false);
+            document.getElementById('progressStatusText').textContent = 'Audit complete!';
+            document.getElementById('currentProcessingUrl').textContent = `Total duration: ${document.getElementById('elapsedTimer').textContent}`;
+            addDebugEntry('SUCCESS', `Bulk audit finished. Processed ${auditResults.length} URLs.`);
+        }
+
+        // Timer Function
+        function updateTimer() {
+            if (!auditStartTime) return;
+            const elapsedSec = Math.floor((Date.now() - auditStartTime) / 1000);
+            const mins = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
+            const secs = String(elapsedSec % 60).padStart(2, '0');
+            document.getElementById('elapsedTimer').textContent = `${mins}:${secs}`;
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // DETAILED EXTENSION MODAL: 1:1 INTERFACE RENDERER
+        // ─────────────────────────────────────────────────────────────
+        function openDetailedModal(index) {
+            const item = auditResults[index];
+            if (!item || !item.success) {
+                alert('Detailed inspection is only available for successfully crawled pages.');
+                return;
+            }
+
+            selectedAuditIndex = index;
+            const d = item.data;
+
+            // 1. Fill Overview Tab
+            document.getElementById('ovTitleText').textContent = d.overview.title || 'Missing title tag';
+            document.getElementById('ovTitleBadge').textContent = `✓ ${d.overview.titleLength} characters`;
+            document.getElementById('ovTitleBadge').className = d.overview.titleLength > 60 
+                ? 'bg-amber-50 text-amber-600 text-xs px-2 py-0.5 rounded-full font-semibold' 
+                : 'bg-emerald-50 text-emerald-600 text-xs px-2 py-0.5 rounded-full font-semibold';
+
+            document.getElementById('ovDescText').textContent = d.overview.description || 'Missing meta description tag';
+            document.getElementById('ovDescBadge').textContent = `✓ ${d.overview.descriptionLength} characters`;
+
+            document.getElementById('ovUrlText').textContent = d.url;
+            document.getElementById('ovUrlIndexBadge').textContent = d.overview.indexable ? '✓ Indexable' : '✕ Noindex';
+            document.getElementById('ovUrlIndexBadge').className = d.overview.indexable
+                ? 'bg-emerald-50 text-emerald-600 text-xs px-2 py-0.5 rounded-full font-semibold'
+                : 'bg-rose-50 text-rose-600 text-xs px-2 py-0.5 rounded-full font-semibold';
+
+            document.getElementById('ovCanonicalText').textContent = d.overview.canonical || 'No canonical tag found';
+            document.getElementById('ovCanonicalBadge').textContent = `✓ ${d.overview.canonicalStatus}`;
+
+            document.getElementById('ovRobotsText').textContent = d.overview.robotsMeta;
+            document.getElementById('ovXRobotsText').textContent = d.overview.xRobotsTag;
+
+            // Robots.txt crawl status
+            const rtxt = d.overview.robotsTxt || { status: 'Allowed' };
+            const rtxtBadge = document.getElementById('ovRobotsTxtBadge');
+            const rtxtRule = document.getElementById('ovRobotsTxtRule');
+            if (rtxtBadge && rtxtRule) {
+                if (rtxt.status === 'Blocked') {
+                    rtxtBadge.className = 'bg-rose-50 text-rose-600 text-[10px] px-2 py-0.5 rounded-full font-bold';
+                    rtxtBadge.textContent = '✕ Blocked';
+                    rtxtRule.textContent = `Rule: ${rtxt.matchedRule || 'Disallow: /'}`;
+                } else {
+                    rtxtBadge.className = 'bg-emerald-50 text-emerald-600 text-[10px] px-2 py-0.5 rounded-full font-bold';
+                    rtxtBadge.textContent = '✓ Allowed';
+                    rtxtRule.textContent = 'No crawl restriction';
+                }
+            }
+
+            document.getElementById('ovKeywordsText').textContent = d.overview.keywords || 'None specified';
+            document.getElementById('ovWordCountText').textContent = d.overview.wordCount.toLocaleString();
+
+            // 2. Fill Headings Tab
+            document.getElementById('hCount1').textContent = d.headings.counts.h1;
+            document.getElementById('hCount2').textContent = d.headings.counts.h2;
+            document.getElementById('hCount3').textContent = d.headings.counts.h3;
+            document.getElementById('hCount4').textContent = d.headings.counts.h4;
+
+            const hContainer = document.getElementById('headingsTreeContainer');
+            hContainer.innerHTML = '';
+            if (d.headings.list.length === 0) {
+                hContainer.innerHTML = '<p class="text-xs text-slate-400 italic">No headings found on this page.</p>';
+            } else {
+                d.headings.list.forEach(h => {
+                    const div = document.createElement('div');
+                    const indentPx = (h.level - 1) * 20;
+                    div.style.marginLeft = `${indentPx}px`;
+                    div.className = 'flex items-baseline gap-2 text-xs py-1 border-b border-slate-50';
+                    div.innerHTML = `
+                        <span class="bg-indigo-50 text-[#6b6bf6] font-bold text-[10px] px-1.5 py-0.5 rounded font-mono">&lt;${h.tag}&gt;</span>
+                        <span class="font-medium text-slate-800 ${h.level === 1 ? 'font-bold text-sm text-slate-900' : ''}">${h.text}</span>
+                    `;
+                    hContainer.appendChild(div);
+                });
+            }
+
+            // 3. Fill Links Tab
+            document.getElementById('lkTotalCount').textContent = d.links.total;
+            document.getElementById('lkUniqueCount').textContent = d.links.unique;
+            document.getElementById('lkInternalCount').textContent = d.links.internalCount;
+            document.getElementById('lkExternalCount').textContent = d.links.externalCount;
+            document.getElementById('internalSubCount').textContent = d.links.internalCount;
+            document.getElementById('externalSubCount').textContent = d.links.externalCount;
+
+            renderLinksList('internal');
+
+            // 4. Fill Images Tab
+            document.getElementById('imgTotalCount').textContent = d.images.total;
+            document.getElementById('imgWithAltCount').textContent = d.images.withAlt;
+            document.getElementById('imgMissingAltCount').textContent = d.images.missingAlt;
+
+            const imgMissingCont = document.getElementById('imagesMissingContainer');
+            imgMissingCont.innerHTML = '';
+            if (d.images.missingList.length === 0) {
+                imgMissingCont.innerHTML = '<p class="text-xs text-emerald-600 font-semibold">🎉 All images on this page have alt attributes!</p>';
+            } else {
+                d.images.missingList.forEach(m => {
+                    const div = document.createElement('div');
+                    div.className = 'p-2 bg-slate-50 rounded-lg text-xs font-mono break-all text-slate-700 border border-slate-200/60';
+                    div.textContent = m.src || m.snippet;
+                    imgMissingCont.appendChild(div);
+                });
+            }
+
+            // 5. Fill Schema & Hreflang Tab
+            const schemaCont = document.getElementById('schemaListContainer');
+            schemaCont.innerHTML = '';
+            if (d.schema.detected.length === 0) {
+                schemaCont.innerHTML = '<span class="text-xs text-slate-400 italic">No JSON-LD structured data detected</span>';
+            } else {
+                d.schema.detected.forEach(s => {
+                    const span = document.createElement('span');
+                    span.className = 'bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs px-2.5 py-1 rounded-lg font-mono font-bold';
+                    span.textContent = s.type + (s.name ? ` (${s.name})` : '');
+                    schemaCont.appendChild(span);
+                });
+            }
+
+            const hrefTable = document.getElementById('hreflangTableBody');
+            hrefTable.innerHTML = '';
+            if (d.schema.hreflangs.length === 0) {
+                hrefTable.innerHTML = '<tr><td colspan="4" class="py-3 text-center text-slate-400 italic">No hreflang annotations found</td></tr>';
+            } else {
+                d.schema.hreflangs.forEach(h => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="py-2 px-3 font-bold text-slate-800">${h.lang}</td>
+                        <td class="py-2 px-3 text-slate-600 break-all">${h.url}</td>
+                        <td class="py-2 px-3 text-center"><span class="bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded text-[10px] font-bold">200</span></td>
+                        <td class="py-2 px-3 text-center text-rose-500 font-semibold">${h.backRef}</td>
+                    `;
+                    hrefTable.appendChild(tr);
+                });
+            }
+
+            // 6. Fill Social Tab
+            const og = d.social.openGraph;
+            document.getElementById('socOgDomain').textContent = og.siteName || new URL(d.finalUrl).hostname;
+            document.getElementById('socOgTitle').textContent = og.title || d.overview.title;
+            document.getElementById('socOgDesc').textContent = og.description || d.overview.description;
+
+            const ogImgEl = document.getElementById('socOgImg');
+            const ogPlaceEl = document.getElementById('socOgImgPlaceholder');
+            if (og.image) {
+                ogImgEl.src = og.image;
+                ogImgEl.classList.remove('hidden');
+                ogPlaceEl.classList.add('hidden');
+            } else {
+                ogImgEl.classList.add('hidden');
+                ogPlaceEl.classList.remove('hidden');
+            }
+
+            const tw = d.social.twitter;
+            document.getElementById('socTwTitle').textContent = tw.title || og.title;
+            document.getElementById('socTwDesc').textContent = tw.description || og.description;
+            document.getElementById('socTwSite').textContent = tw.site || new URL(d.finalUrl).hostname;
+
+            const twImgEl = document.getElementById('socTwImg');
+            const twPlaceEl = document.getElementById('socTwImgPlaceholder');
+            if (tw.image || og.image) {
+                twImgEl.src = tw.image || og.image;
+                twImgEl.classList.remove('hidden');
+                twPlaceEl.classList.add('hidden');
+            } else {
+                twImgEl.classList.add('hidden');
+                twPlaceEl.classList.remove('hidden');
+            }
+
+            // Load Wayback Machine metadata for this URL
+            loadWaybackMetaForModal(d.url);
+
+            // Default to Overview Tab
+            switchModalTab('overview');
+
+            // Open Modal
+            document.getElementById('detailedModal').classList.remove('hidden');
+        }
+
+        function closeDetailedModal() {
+            document.getElementById('detailedModal').classList.add('hidden');
+        }
+
+        function switchModalTab(tabName) {
+            ['overview', 'headings', 'links', 'images', 'schema', 'social', 'timeMachine'].forEach(t => {
+                const c = document.getElementById(`modalContent-${t}`);
+                const b = document.getElementById(`modTab-${t}`);
+                if (c) c.classList.add('hidden');
+                if (b) b.className = 'px-2.5 py-1.5 rounded-lg text-gray-300 hover:text-white font-semibold flex items-center gap-1.5 transition';
+            });
+            const activeC = document.getElementById(`modalContent-${tabName}`);
+            const activeB = document.getElementById(`modTab-${tabName}`);
+            if (activeC) activeC.classList.remove('hidden');
+            if (activeB) activeB.className = 'px-2.5 py-1.5 rounded-lg text-white font-semibold flex items-center gap-1.5 transition bg-white/10';
+
+            if (tabName === 'timeMachine') {
+                runWaybackDiff();
+            }
+        }
+
+        // Render Links list in Modal
+        function renderLinksList(type) {
+            if (selectedAuditIndex === null) return;
+            const d = auditResults[selectedAuditIndex].data;
+            const container = document.getElementById('linksListContainer');
+            container.innerHTML = '';
+
+            const links = type === 'internal' ? d.links.internal : d.links.external;
+            if (links.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-400 italic">No ${type} links found.</p>`;
+                return;
+            }
+
+            links.slice(0, 100).forEach(l => {
+                const div = document.createElement('div');
+                div.className = 'py-2 flex flex-col space-y-0.5';
+                div.innerHTML = `
+                    <a href="${l.url}" target="_blank" rel="noopener noreferrer" class="text-xs font-semibold text-[#6b6bf6] hover:underline break-all">
+                        ${l.url}
+                    </a>
+                    <div class="flex items-center gap-2 text-[11px] text-slate-500">
+                        <span class="italic text-slate-600">${l.anchor}</span>
+                        ${l.isNoFollow ? '<span class="bg-rose-50 text-rose-600 px-1 rounded text-[10px] font-bold">nofollow</span>' : ''}
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+            if (links.length > 100) {
+                const note = document.createElement('p');
+                note.className = 'text-xs text-slate-400 pt-2 text-center';
+                note.textContent = `Showing first 100 of ${links.length} links. Export CSV to view all.`;
+                container.appendChild(note);
+            }
+        }
+
+        function switchLinksSubtab(type) {
+            document.getElementById('lkSubTab-internal').className = type === 'internal' 
+                ? 'py-2 text-xs font-bold border-b-2 border-[#6b6bf6] text-[#6b6bf6]'
+                : 'py-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800';
+            document.getElementById('lkSubTab-external').className = type === 'external'
+                ? 'py-2 text-xs font-bold border-b-2 border-[#6b6bf6] text-[#6b6bf6]'
+                : 'py-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800';
+            renderLinksList(type);
+        }
+
+        // Copy Headings
+        function copyHeadingsOutline() {
+            if (selectedAuditIndex === null) return;
+            const d = auditResults[selectedAuditIndex].data;
+            const outline = d.headings.list.map(h => `${'  '.repeat(h.level - 1)}[${h.tag}] ${h.text}`).join('\n');
+            navigator.clipboard.writeText(outline);
+            alert('Headings outline copied to clipboard!');
+        }
+
+        // Filter Table
+        function filterResultsTable() {
+            const query = document.getElementById('tableFilterInput').value.toLowerCase();
+            const filter = document.getElementById('filterStatus').value;
+            const rows = document.getElementById('resultsTableBody').getElementsByTagName('tr');
+
+            for (let i = 0; i < rows.length; i++) {
+                const item = auditResults[i];
+                if (!item) continue;
+
+                let matchesQuery = true;
+                if (query) {
+                    const text = (item.url + (item.data?.overview?.title || '')).toLowerCase();
+                    matchesQuery = text.includes(query);
+                }
+
+                let matchesFilter = true;
+                if (filter === 'indexable') {
+                    matchesFilter = item.success && item.data.overview.indexable;
+                } else if (filter === 'non-indexable') {
+                    matchesFilter = item.success && !item.data.overview.indexable;
+                } else if (filter === 'canon-diff') {
+                    matchesFilter = item.success && item.data.overview.canonicalStatus === 'Different';
+                } else if (filter === 'failed') {
+                    matchesFilter = !item.success;
+                }
+
+                rows[i].style.display = matchesQuery && matchesFilter ? '' : 'none';
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // EXPORT ENGINE
+        // ─────────────────────────────────────────────────────────────
+        function exportToCSV() {
+            if (auditResults.length === 0) {
+                alert('No audit results to export');
+                return;
+            }
+
+            const headers = [
+                'URL', 'Status_Code', 'Title', 'Title_Length', 'Meta_Description', 'Description_Length',
+                'Canonical_URL', 'Canonical_Status', 'Indexable', 'Robots_Tag', 'X_Robots_Tag',
+                'Word_Count', 'H1_Count', 'H1_Text', 'H2_Count', 'Total_Headings',
+                'Total_Links', 'Internal_Links', 'External_Links', 'Total_Images', 'Images_Missing_Alt',
+                'Schema_Types', 'Response_Time_MS'
+            ];
+
+            const rows = auditResults.map(item => {
+                if (!item.success) {
+                    return [item.url, 'ERROR', '', '', '', '', '', '', 'FALSE', '', '', '', '', '', '', '', '', '', '', '', '', '', item.error?.responseTimeMs || ''];
+                }
+                const d = item.data;
+                const schemaTypes = d.schema.detected.map(s => s.type).join('; ');
+                return [
+                    d.url,
+                    d.statusCode,
+                    d.overview.title,
+                    d.overview.titleLength,
+                    d.overview.description,
+                    d.overview.descriptionLength,
+                    d.overview.canonical,
+                    d.overview.canonicalStatus,
+                    d.overview.indexable ? 'TRUE' : 'FALSE',
+                    d.overview.robotsMeta,
+                    d.overview.xRobotsTag,
+                    d.overview.wordCount,
+                    d.headings.counts.h1,
+                    d.headings.h1Text,
+                    d.headings.counts.h2,
+                    d.headings.list.length,
+                    d.links.total,
+                    d.links.internalCount,
+                    d.links.externalCount,
+                    d.images.total,
+                    d.images.missingAlt,
+                    schemaTypes,
+                    d.responseTimeMs
+                ];
+            });
+
+            downloadCSVFile('bulk_detailed_seo_audit.csv', [headers, ...rows]);
+        }
+
+        function exportAllLinksCSV() {
+            if (auditResults.length === 0) {
+                alert('No links to export');
+                return;
+            }
+
+            const headers = ['Source_Page_URL', 'Link_Type', 'Target_URL', 'Anchor_Text', 'Follow_Status'];
+            const rows = [];
+
+            auditResults.forEach(item => {
+                if (!item.success) return;
+                const d = item.data;
+                d.links.internal.forEach(l => {
+                    rows.push([d.url, 'Internal', l.url, l.anchor, l.isNoFollow ? 'nofollow' : 'follow']);
+                });
+                d.links.external.forEach(l => {
+                    rows.push([d.url, 'External', l.url, l.anchor, l.isNoFollow ? 'nofollow' : 'follow']);
+                });
+            });
+
+            downloadCSVFile('bulk_detailed_all_links.csv', [headers, ...rows]);
+        }
+
+        function downloadCSVFile(filename, rows) {
+            const csvContent = 'data:text/csv;charset=utf-8,' + rows.map(e => e.map(cell => `"${String(cell || '').replace(/"/g, '""')}"`).join(',')).join('\n');
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement('a');
+            link.setAttribute('href', encodedUri);
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // LIVE DEBUG CONSOLE
+        // ─────────────────────────────────────────────────────────────
+        function addDebugEntry(level, message) {
+            const timestamp = new Date().toLocaleTimeString();
+            debugLogs.push({ timestamp, level, message });
+            document.getElementById('debugBadge').textContent = debugLogs.length;
+
+            const container = document.getElementById('debugLogContainer');
+            const div = document.createElement('div');
+            const colorClass = level === 'ERROR' ? 'text-rose-400' : level === 'SUCCESS' ? 'text-emerald-400' : level === 'WARN' ? 'text-amber-400' : 'text-slate-300';
+
+            div.innerHTML = `<span class="text-slate-500">[${timestamp}]</span> <span class="font-bold ${colorClass}">[${level}]</span> ${escapeHtml(message)}`;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function toggleDebugConsole() {
+            const drawer = document.getElementById('debugConsoleDrawer');
+            if (drawer.classList.contains('translate-y-full')) {
+                drawer.classList.remove('translate-y-full');
+            } else {
+                drawer.classList.add('translate-y-full');
+            }
+        }
+
+        function clearDebugLog() {
+            debugLogs = [];
+            document.getElementById('debugBadge').textContent = '0';
+            document.getElementById('debugLogContainer').innerHTML = '<div class="text-slate-500 italic">[SYSTEM] Debug log cleared.</div>';
+        }
+
+        function downloadDebugReport() {
+            const blob = new Blob([JSON.stringify(debugLogs, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `debug_report_${Date.now()}.json`;
+            a.click();
+        }
+
+        function clearAll() {
+            document.getElementById('urlsInput').value = '';
+            document.getElementById('resultsTableBody').innerHTML = '';
+            document.getElementById('resultsSection').classList.add('hidden');
+            document.getElementById('progressSection').classList.add('hidden');
+            auditResults = [];
+            updateUrlCount();
+            clearDebugLog();
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // WAYBACK MACHINE SUITE JAVASCRIPT ENGINE
+        // ─────────────────────────────────────────────────────────────
+        let reclaimResults = [];
+        let currentWaybackUrl = null;
+
+        // 1. Fetch & Display Wayback Metadata for Current Modal Page
+        async function loadWaybackMetaForModal(url) {
+            currentWaybackUrl = url;
+            document.getElementById('ovWaybackBadge').textContent = 'Querying Archive.org...';
+            document.getElementById('ovFirstSeenText').textContent = 'Checking...';
+            document.getElementById('ovLatestSnapText').textContent = 'Checking...';
+            document.getElementById('tmFirstSeenBadge').textContent = 'Connecting to Wayback...';
+
+            const waybackSaveUrl = `https://web.archive.org/save/${encodeURIComponent(url)}`;
+            document.getElementById('ovSaveNowLink').href = waybackSaveUrl;
+
+            try {
+                const resp = await fetch('/api/wayback/meta', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                const meta = await resp.json();
+
+                if (meta.available && meta.earliest) {
+                    const ageLabel = meta.earliest.age ? ` (${meta.earliest.age})` : '';
+                    document.getElementById('ovWaybackBadge').textContent = `✓ Indexed ${meta.earliest.dateFormatted}${ageLabel}`;
+                    document.getElementById('ovWaybackBadge').className = 'bg-emerald-50 text-emerald-600 text-xs px-2.5 py-0.5 rounded-full font-semibold';
+
+                    document.getElementById('ovFirstSeenText').textContent = `${meta.earliest.dateFormatted}${ageLabel}`;
+                    document.getElementById('ovLatestSnapText').textContent = meta.latest?.dateFormatted || 'N/A';
+
+                    document.getElementById('ovWaybackLink').href = `https://web.archive.org/web/*/${url}`;
+                    document.getElementById('tmArchiveLink').href = `https://web.archive.org/web/*/${url}`;
+                    document.getElementById('tmFirstSeenBadge').textContent = `First Captured: ${meta.earliest.dateFormatted}${ageLabel}`;
+                } else {
+                    document.getElementById('ovWaybackBadge').textContent = 'Not yet archived';
+                    document.getElementById('ovWaybackBadge').className = 'bg-amber-50 text-amber-700 text-xs px-2.5 py-0.5 rounded-full font-semibold';
+                    document.getElementById('ovFirstSeenText').textContent = 'No records in Archive.org';
+                    document.getElementById('ovLatestSnapText').textContent = '--';
+                    document.getElementById('tmFirstSeenBadge').textContent = 'No prior snapshots found';
+                }
+            } catch (err) {
+                document.getElementById('ovWaybackBadge').textContent = 'Wayback check timed out';
+                document.getElementById('ovFirstSeenText').textContent = 'Offline';
+            }
+        }
+
+        // 2. Run Historical SEO Time Machine Diff
+        async function runWaybackDiff() {
+            if (selectedAuditIndex === null) return;
+            const currentItem = auditResults[selectedAuditIndex];
+            if (!currentItem || !currentItem.success) return;
+
+            const url = currentItem.data.url;
+            const timePreset = document.getElementById('tmPresetSelect').value;
+
+            document.getElementById('tmLoadingState').classList.remove('hidden');
+            document.getElementById('tmDiffContainer').innerHTML = '';
+            document.getElementById('tmRefreshBtn').disabled = true;
+
+            try {
+                const resp = await fetch('/api/wayback/diff', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        url,
+                        timePreset,
+                        liveData: currentItem.data
+                    })
+                });
+
+                const data = await resp.json();
+                document.getElementById('tmLoadingState').classList.add('hidden');
+                document.getElementById('tmRefreshBtn').disabled = false;
+
+                if (!data.success) {
+                    document.getElementById('tmDiffContainer').innerHTML = `
+                        <div class="bg-amber-50 border border-amber-200 p-4 rounded-xl text-xs text-amber-800">
+                            <strong>Notice:</strong> ${escapeHtml(data.error || 'No historical snapshot found for this preset date.')}
+                        </div>
+                    `;
+                    return;
+                }
+
+                renderWaybackDiffResults(data.diff, data.historical, currentItem.data);
+
+            } catch (err) {
+                document.getElementById('tmLoadingState').classList.add('hidden');
+                document.getElementById('tmRefreshBtn').disabled = false;
+                document.getElementById('tmDiffContainer').innerHTML = `
+                    <div class="bg-rose-50 border border-rose-200 p-4 rounded-xl text-xs text-rose-700">
+                        <strong>Error:</strong> Failed to fetch historical snapshot from Archive.org: ${escapeHtml(err.message)}
+                    </div>
+                `;
+            }
+        }
+
+        // Render Comparative Diff Cards
+        function renderWaybackDiffResults(diff, hist, live) {
+            const container = document.getElementById('tmDiffContainer');
+            container.innerHTML = '';
+
+            document.getElementById('tmSnapshotDate').textContent = `Comparing Live Page vs Archive.org Snapshot from ${diff.snapshotDate} (${diff.snapshotAge})`;
+
+            // Word Count Change Pill
+            const wordSign = diff.wordCount.diff >= 0 ? '+' : '';
+            const wordColor = diff.wordCount.diff >= 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200';
+            const wordLabel = diff.wordCount.diff >= 0 ? 'Content Expanded' : 'Content Pruned';
+
+            const summaryCard = document.createElement('div');
+            summaryCard.className = 'bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between';
+            summaryCard.innerHTML = `
+                <div>
+                    <span class="text-[11px] font-bold text-slate-500 uppercase">Historical Word Count Trend</span>
+                    <p class="text-sm font-semibold text-slate-800">
+                        ${hist.overview.wordCount.toLocaleString()} words (Historic) → <strong class="text-slate-900">${live.overview.wordCount.toLocaleString()} words (Live)</strong>
+                    </p>
+                </div>
+                <div class="px-3 py-1.5 rounded-xl border ${wordColor} font-bold text-xs">
+                    ${wordSign}${diff.wordCount.diff.toLocaleString()} words (${wordSign}${diff.wordCount.percentChange}%) • ${wordLabel}
+                </div>
+            `;
+            container.appendChild(summaryCard);
+
+            // Title Comparison
+            container.appendChild(createDiffRow('Page Title', hist.overview.title, live.overview.title, diff.title.changed));
+
+            // H1 Tag Comparison
+            container.appendChild(createDiffRow('H1 Heading', hist.headings.h1Text, live.headings.h1Text, diff.h1.changed));
+
+            // Meta Description Comparison
+            container.appendChild(createDiffRow('Meta Description', hist.overview.description, live.overview.description, diff.metaDescription.changed));
+
+            // Canonical Tag Comparison
+            container.appendChild(createDiffRow('Canonical Tag', hist.overview.canonical, live.overview.canonical, diff.canonical.changed));
+
+            // Outline Comparison
+            const outlineCard = document.createElement('div');
+            outlineCard.className = 'bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2';
+            outlineCard.innerHTML = `
+                <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <span class="text-[11px] font-bold text-slate-500 uppercase">Headings Count Evolution</span>
+                    <div class="text-xs space-x-2 font-mono">
+                        <span class="text-slate-500">Historical: <strong>${diff.headingsCount.historical}</strong></span>
+                        <span class="text-slate-300">→</span>
+                        <span class="text-[#6b6bf6] font-bold">Live: <strong>${diff.headingsCount.current}</strong></span>
+                    </div>
+                </div>
+                <a href="${diff.waybackUrl}" target="_blank" class="inline-flex items-center gap-1.5 text-xs font-bold text-[#6b6bf6] hover:underline pt-1">
+                    <i class="fas fa-arrow-up-right-from-square text-[10px]"></i> Open Full Historical Snapshot on Archive.org (${diff.snapshotDate})
+                </a>
+            `;
+            container.appendChild(outlineCard);
+        }
+
+        function createDiffRow(label, oldVal, newVal, isChanged) {
+            const div = document.createElement('div');
+            div.className = `bg-white p-4 rounded-xl border ${isChanged ? 'border-amber-200/90 bg-amber-50/20' : 'border-slate-200'} shadow-sm space-y-2`;
+            
+            const badge = isChanged 
+                ? '<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">MODIFIED</span>' 
+                : '<span class="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full">UNCHANGED</span>';
+
+            div.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-700 uppercase">${label}</span>
+                    ${badge}
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div class="p-2.5 rounded-lg bg-slate-50 border border-slate-200/70 space-y-1">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Historic Snapshot</span>
+                        <p class="font-medium text-slate-700 leading-relaxed">${escapeHtml(oldVal || '[None]')}</p>
+                    </div>
+                    <div class="p-2.5 rounded-lg ${isChanged ? 'bg-indigo-50/50 border border-indigo-100' : 'bg-slate-50 border border-slate-200/70'} space-y-1">
+                        <span class="text-[10px] font-bold ${isChanged ? 'text-indigo-600' : 'text-slate-400'} uppercase tracking-wider block">Live Website (Today)</span>
+                        <p class="font-medium text-slate-900 leading-relaxed">${escapeHtml(newVal || '[None]')}</p>
+                    </div>
+                </div>
+            `;
+            return div;
+        }
+
+        // 3. Resurrect Dead URL
+        async function resurrectDeadUrl(url) {
+            document.getElementById('resurrectModal').classList.remove('hidden');
+            document.getElementById('resurrectDateText').textContent = 'Searching Archive.org for working snapshot...';
+            document.getElementById('resurrectTitle').textContent = 'Resurrecting...';
+            document.getElementById('resurrectH1').textContent = 'Resurrecting...';
+            document.getElementById('resurrectDesc').textContent = 'Resurrecting...';
+            document.getElementById('resurrectText').textContent = 'Fetching and parsing lost content...';
+            document.getElementById('resurrectRedirectTarget').value = '';
+
+            try {
+                const resp = await fetch('/api/wayback/resurrect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                const res = await resp.json();
+
+                if (!res.success) {
+                    alert(`Could not resurrect URL: ${res.error}`);
+                    closeResurrectModal();
+                    return;
+                }
+
+                document.getElementById('resurrectDateText').textContent = `Last Working Snapshot: ${res.snapshotDate}`;
+                document.getElementById('resurrectWaybackLink').href = res.snapshotUrl;
+                document.getElementById('resurrectTitle').textContent = res.data.overview.title || 'No title';
+                document.getElementById('resurrectH1').textContent = res.data.headings.h1Text || 'No H1';
+                document.getElementById('resurrectDesc').textContent = res.data.overview.description || 'No description';
+                document.getElementById('resurrectText').textContent = res.extractedTextSnippet || 'No body text extracted';
+
+                try {
+                    const u = new URL(url);
+                    const parts = u.pathname.split('/').filter(Boolean);
+                    if (parts.length > 1) {
+                        parts.pop();
+                        document.getElementById('resurrectRedirectTarget').value = `${u.origin}/${parts.join('/')}`;
+                    } else {
+                        document.getElementById('resurrectRedirectTarget').value = u.origin;
+                    }
+                } catch {
+                    document.getElementById('resurrectRedirectTarget').value = url;
+                }
+
+            } catch (err) {
+                alert(`Resurrection failed: ${err.message}`);
+                closeResurrectModal();
+            }
+        }
+
+        function closeResurrectModal() {
+            document.getElementById('resurrectModal').classList.add('hidden');
+        }
+
+        function copyResurrectedText() {
+            const text = document.getElementById('resurrectText').textContent;
+            navigator.clipboard.writeText(text);
+            alert('Recovered content copied to clipboard!');
+        }
+
+        // 4. Wayback CDX Lost URL Hunter
+        async function startWaybackReclaim() {
+            const domain = document.getElementById('reclaimDomainInput').value.trim();
+            const limit = document.getElementById('reclaimLimitSelect').value;
+
+            if (!domain) {
+                alert('Please enter a target domain');
+                return;
+            }
+
+            const btn = document.getElementById('btnStartReclaim');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Hunting CDX...';
+            addDebugEntry('INFO', `Starting Wayback Lost URL Hunt for domain: ${domain} (limit: ${limit})`);
+
+            try {
+                const resp = await fetch('/api/wayback/reclaim', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ domain, limit })
+                });
+
+                const data = await resp.json();
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-magnifying-glass"></i> <span>Hunt Lost 404 URLs</span>';
+
+                if (data.error) {
+                    alert(`Wayback CDX Error: ${data.error}`);
+                    return;
+                }
+
+                reclaimResults = data.items;
+                document.getElementById('reclaimDomainBadge').textContent = data.domain;
+                document.getElementById('recStatTotal').textContent = data.totalDiscovered;
+                document.getElementById('recStatLost').textContent = data.summary.lost404;
+                document.getElementById('recStatRedirected').textContent = data.summary.redirected;
+                document.getElementById('recStatActive').textContent = data.summary.active200;
+
+                renderReclaimTable(reclaimResults);
+                document.getElementById('reclaimSection').classList.remove('hidden');
+                document.getElementById('reclaimSection').scrollIntoView({ behavior: 'smooth' });
+
+                addDebugEntry('SUCCESS', `Wayback CDX hunt complete. Found ${data.summary.lost404} dead 404 pages out of ${data.totalDiscovered} historical URLs.`);
+
+            } catch (err) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-magnifying-glass"></i> <span>Hunt Lost 404 URLs</span>';
+                addDebugEntry('ERROR', `Reclaim hunt failed: ${err.message}`);
+                alert(`Reclaim failed: ${err.message}`);
+            }
+        }
+
+        function renderReclaimTable(items) {
+            const tbody = document.getElementById('reclaimTableBody');
+            tbody.innerHTML = '';
+            document.getElementById('recTableCountBadge').textContent = `${items.length} URLs`;
+
+            if (items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-400 italic">No historical URLs match this filter.</td></tr>';
+                return;
+            }
+
+            items.forEach((item, idx) => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition';
+
+                const statusBadge = item.category === 'lost404' 
+                    ? '<span class="bg-rose-50 text-rose-600 font-bold px-2 py-0.5 rounded-full text-[11px]">404 Dead</span>'
+                    : item.category === 'redirected'
+                    ? '<span class="bg-blue-50 text-blue-600 font-bold px-2 py-0.5 rounded-full text-[11px]">3xx Redirect</span>'
+                    : '<span class="bg-emerald-50 text-emerald-600 font-bold px-2 py-0.5 rounded-full text-[11px]">200 Active</span>';
+
+                tr.innerHTML = `
+                    <td class="py-3 px-3 text-center text-slate-400 font-bold">${idx + 1}</td>
+                    <td class="py-3 px-3 max-w-sm">
+                        <a href="${item.url}" target="_blank" class="font-bold text-slate-800 hover:text-[#6b6bf6] break-all">${escapeHtml(item.url)}</a>
+                        <div class="flex items-center gap-2 mt-0.5 text-[11px] text-slate-400">
+                            <a href="${item.waybackLink}" target="_blank" class="hover:underline flex items-center gap-1 text-indigo-500">
+                                <i class="fas fa-landmark text-[9px]"></i> Wayback Snapshots
+                            </a>
+                        </div>
+                    </td>
+                    <td class="py-3 px-3 font-mono text-slate-500">${item.firstSeenDate || '--'}</td>
+                    <td class="py-3 px-3">${statusBadge}</td>
+                    <td class="py-3 px-3 max-w-xs font-mono text-[11px] text-slate-600 truncate" title="${item.suggestedTarget}">
+                        ${item.category === 'lost404' ? `<span class="text-amber-700 font-semibold">${item.suggestedTarget}</span>` : '--'}
+                    </td>
+                    <td class="py-3 px-3 text-center">
+                        ${item.category === 'lost404' ? `
+                            <button onclick="resurrectDeadUrl('${item.url}')" class="bg-purple-100 hover:bg-purple-200 text-purple-800 text-[11px] font-bold px-2.5 py-1 rounded-lg transition shadow-sm">
+                                🧟 Resurrect
+                            </button>
+                        ` : `
+                            <a href="${item.url}" target="_blank" class="text-slate-400 hover:text-slate-700 text-xs px-2 py-1">
+                                <i class="fas fa-arrow-up-right-from-square"></i>
+                            </a>
+                        `}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function filterReclaimTable(category) {
+            ['all', 'lost404', 'redirected', 'active200'].forEach(c => {
+                const btn = document.getElementById(`recFilter-${c}`);
+                if (btn) {
+                    btn.className = c === category
+                        ? 'text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-800 text-white transition'
+                        : 'text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
+                }
+            });
+
+            if (category === 'all') {
+                renderReclaimTable(reclaimResults);
+            } else {
+                const filtered = reclaimResults.filter(i => i.category === category);
+                renderReclaimTable(filtered);
+            }
+        }
+
+        function closeReclaimSection() {
+            document.getElementById('reclaimSection').classList.add('hidden');
+        }
+
+        function export301RedirectCSV() {
+            if (reclaimResults.length === 0) {
+                alert('No historical URLs to export.');
+                return;
+            }
+
+            const headers = ['Historical_Lost_URL', 'First_Seen_Date', 'Current_Live_Status', 'Recommended_301_Redirect_Target'];
+            const rows = reclaimResults.map(r => [
+                r.url,
+                r.firstSeenDate || '',
+                r.liveStatus,
+                r.category === 'lost404' ? r.suggestedTarget : 'Active/Redirected'
+            ]);
+
+            downloadCSVFile('wayback_301_redirect_mapping.csv', [headers, ...rows]);
+        }
+
+        function sendReclaimedToBulkAudit(onlyActive = false) {
+            if (!reclaimResults || reclaimResults.length === 0) {
+                alert('No Wayback URLs found to audit. Please run the CDX hunt first.');
+                return;
+            }
+            const targetItems = onlyActive 
+                ? reclaimResults.filter(r => r.category === 'active200')
+                : reclaimResults;
+            const urls = targetItems.map(r => r.url);
+            if (urls.length === 0) {
+                alert('No matching URLs found to audit.');
+                return;
+            }
+            executeBulkAudit(urls, 'Wayback Discovered URLs', 5);
+        }
+
+        function escapeHtml(text) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return String(text).replace(/[&<>"']/g, m => map[m]);
+        }
+    </script>
+</body>
+</html>

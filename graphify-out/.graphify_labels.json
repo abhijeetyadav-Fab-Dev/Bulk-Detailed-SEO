@@ -1,0 +1,15 @@
+{
+  "0": "server.js",
+  "1": "dependencies",
+  "2": "package.json",
+  "3": "Bulk Detailed SEO Extension & Wayback Machine Intelligence Suite",
+  "4": "fetchAndAuditUrl",
+  "5": "test-all-modes.js",
+  "6": "extractDetailedSeo",
+  "7": "test-audit.js",
+  "8": "test-e2e.js",
+  "9": "test-robots-verification.js",
+  "10": "test-wayback.js",
+  "11": "test-wayback-suite.js",
+  "12": "categorizeSitemapUrl"
+}
