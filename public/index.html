@@ -749,6 +749,9 @@
                     <button onclick="switchModalTab('social')" id="modTab-social" class="px-2.5 py-1.5 rounded-lg text-gray-300 hover:text-white font-semibold flex items-center gap-1.5 transition">
                         <i class="fas fa-share-nodes"></i> Social
                     </button>
+                    <button onclick="switchModalTab('advanced')" id="modTab-advanced" class="px-2.5 py-1.5 rounded-lg text-gray-300 hover:text-white font-semibold flex items-center gap-1.5 transition">
+                        <i class="fas fa-sliders"></i> Advanced
+                    </button>
                     <button onclick="switchModalTab('timeMachine')" id="modTab-timeMachine" class="px-2.5 py-1.5 rounded-lg text-amber-300 hover:text-white font-semibold flex items-center gap-1.5 transition">
                         <i class="fas fa-clock-rotate-left"></i> Time Machine (Diff)
                     </button>
@@ -1176,7 +1179,199 @@
                     </div>
                 </div>
 
-                <!-- 7. TIME MACHINE / WAYBACK DIFF TAB -->
+                <!-- 7. ADVANCED TAB (DETAILED & AHREFS QUICK LINKS & DIRECT FILES) -->
+                <div id="modalContent-advanced" class="hidden space-y-4">
+                    <!-- Detailed & Ahrefs Attribution & Welcome Card -->
+                    <div class="bg-gradient-to-r from-[#191828] via-[#23213a] to-[#2d2a4e] text-white p-4 sm:p-5 rounded-2xl border border-white/10 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div class="flex items-center gap-3.5">
+                            <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-[#6b6bf6] to-[#9d9df9] flex items-center justify-center text-white font-black text-xl shadow-inner shadow-indigo-400">
+                                D
+                            </div>
+                            <div>
+                                <h4 class="text-sm font-bold tracking-wide flex items-center gap-2">
+                                    Detailed & Ahrefs SEO Diagnostics
+                                    <span class="bg-orange-500/20 text-orange-300 border border-orange-400/30 text-[10px] font-bold px-2 py-0.5 rounded-full">Pro</span>
+                                </h4>
+                                <p class="text-xs text-gray-300 mt-0.5">This extension was developed by SEOs at Detailed and Ahrefs</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 self-start sm:self-auto">
+                            <a href="https://detailed.com/" target="_blank" rel="noopener noreferrer" class="text-xs bg-[#6b6bf6] hover:bg-[#5858e6] text-white font-bold px-3.5 py-1.5 rounded-xl transition flex items-center gap-1.5 shadow-sm">
+                                <span>Detailed.com</span> <i class="fas fa-arrow-up-right-from-square text-[10px]"></i>
+                            </a>
+                            <a href="https://ahrefs.com/" target="_blank" rel="noopener noreferrer" class="text-xs bg-[#ef5323] hover:bg-[#d94416] text-white font-bold px-3.5 py-1.5 rounded-xl transition flex items-center gap-1.5 shadow-sm">
+                                <span>Ahrefs.com</span> <i class="fas fa-arrow-up-right-from-square text-[10px]"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Direct Technical Files Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2 flex flex-col justify-between">
+                            <div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-slate-700 uppercase flex items-center gap-1.5">
+                                        <i class="fas fa-robot text-indigo-500"></i> robots.txt
+                                    </span>
+                                    <span id="advRobotsBadge" class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">Standard</span>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-1">Direct link to inspect crawl directives & user-agent restrictions.</p>
+                            </div>
+                            <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
+                                <a id="advRobotsLink" href="#" target="_blank" rel="noopener noreferrer" class="text-xs font-bold text-[#6b6bf6] hover:underline flex items-center gap-1">
+                                    Open robots.txt <i class="fas fa-external-link text-[10px]"></i>
+                                </a>
+                                <button onclick="copyAdvLink('advRobotsLink')" class="text-[11px] text-slate-400 hover:text-slate-700 transition">
+                                    <i class="fas fa-copy"></i> Copy
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2 flex flex-col justify-between">
+                            <div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-slate-700 uppercase flex items-center gap-1.5">
+                                        <i class="fas fa-sitemap text-emerald-500"></i> sitemap.xml
+                                    </span>
+                                    <span class="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-bold">XML Feed</span>
+                                </div>
+                                <p class="text-xs text-slate-500 mt-1">Direct link to default domain XML sitemap index.</p>
+                            </div>
+                            <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
+                                <a id="advSitemapLink" href="#" target="_blank" rel="noopener noreferrer" class="text-xs font-bold text-emerald-600 hover:underline flex items-center gap-1">
+                                    Open sitemap.xml <i class="fas fa-external-link text-[10px]"></i>
+                                </a>
+                                <button onclick="copyAdvLink('advSitemapLink')" class="text-[11px] text-slate-400 hover:text-slate-700 transition">
+                                    <i class="fas fa-copy"></i> Copy
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Google Search Operator Shortcuts -->
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                            <h5 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                                <i class="fab fa-google text-blue-500"></i> Google Diagnostic Search Operators
+                            </h5>
+                            <span class="text-[11px] text-slate-400">1-click live index inspection</span>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            <a id="advGoogleSiteDomain" href="#" target="_blank" rel="noopener noreferrer" class="p-2.5 rounded-lg bg-slate-50 hover:bg-indigo-50/50 border border-slate-200/80 hover:border-indigo-200 transition group flex items-start justify-between">
+                                <div class="space-y-0.5">
+                                    <span class="text-xs font-bold text-slate-900 group-hover:text-[#6b6bf6] font-mono flex items-center gap-1.5">
+                                        <i class="fas fa-magnifying-glass text-[10px] text-slate-400 group-hover:text-[#6b6bf6]"></i> site:domain
+                                    </span>
+                                    <p class="text-[11px] text-slate-500">View all indexed URLs for this entire domain</p>
+                                </div>
+                                <i class="fas fa-arrow-up-right-from-square text-[10px] text-slate-300 group-hover:text-[#6b6bf6] mt-1"></i>
+                            </a>
+
+                            <a id="advGoogleSiteUrl" href="#" target="_blank" rel="noopener noreferrer" class="p-2.5 rounded-lg bg-slate-50 hover:bg-indigo-50/50 border border-slate-200/80 hover:border-indigo-200 transition group flex items-start justify-between">
+                                <div class="space-y-0.5">
+                                    <span class="text-xs font-bold text-slate-900 group-hover:text-[#6b6bf6] font-mono flex items-center gap-1.5">
+                                        <i class="fas fa-check-double text-[10px] text-slate-400 group-hover:text-[#6b6bf6]"></i> site:exact-url
+                                    </span>
+                                    <p class="text-[11px] text-slate-500">Verify if this exact URL is indexed by Google</p>
+                                </div>
+                                <i class="fas fa-arrow-up-right-from-square text-[10px] text-slate-300 group-hover:text-[#6b6bf6] mt-1"></i>
+                            </a>
+
+                            <a id="advGoogleNonHttps" href="#" target="_blank" rel="noopener noreferrer" class="p-2.5 rounded-lg bg-slate-50 hover:bg-indigo-50/50 border border-slate-200/80 hover:border-indigo-200 transition group flex items-start justify-between">
+                                <div class="space-y-0.5">
+                                    <span class="text-xs font-bold text-slate-900 group-hover:text-[#6b6bf6] font-mono flex items-center gap-1.5">
+                                        <i class="fas fa-shield-virus text-[10px] text-amber-500"></i> -inurl:https site:domain
+                                    </span>
+                                    <p class="text-[11px] text-slate-500">Audit insecure HTTP pages indexed in search</p>
+                                </div>
+                                <i class="fas fa-arrow-up-right-from-square text-[10px] text-slate-300 group-hover:text-[#6b6bf6] mt-1"></i>
+                            </a>
+
+                            <a id="advGoogleCache" href="#" target="_blank" rel="noopener noreferrer" class="p-2.5 rounded-lg bg-slate-50 hover:bg-indigo-50/50 border border-slate-200/80 hover:border-indigo-200 transition group flex items-start justify-between">
+                                <div class="space-y-0.5">
+                                    <span class="text-xs font-bold text-slate-900 group-hover:text-[#6b6bf6] font-mono flex items-center gap-1.5">
+                                        <i class="fas fa-server text-[10px] text-slate-400 group-hover:text-[#6b6bf6]"></i> cache:url
+                                    </span>
+                                    <p class="text-[11px] text-slate-500">View Google's cached snapshot of this page</p>
+                                </div>
+                                <i class="fas fa-arrow-up-right-from-square text-[10px] text-slate-300 group-hover:text-[#6b6bf6] mt-1"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- 1-Click Third-Party SEO Tools Grid (Detailed Parity) -->
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                            <h5 class="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                                <i class="fas fa-toolbox text-[#6b6bf6]"></i> Third-Party SEO Tool Integrations
+                            </h5>
+                            <span class="text-[11px] text-slate-400">1-click direct link to top intelligence platforms</span>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
+                            <a id="advToolAhrefs" href="#" target="_blank" rel="noopener noreferrer" class="p-3 rounded-xl border border-slate-200 hover:border-orange-400 hover:bg-orange-50/40 transition flex flex-col items-center justify-center text-center space-y-1 group">
+                                <span class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center text-sm font-black group-hover:scale-110 transition">ah</span>
+                                <span class="text-xs font-bold text-slate-800 group-hover:text-orange-600">Ahrefs</span>
+                                <span class="text-[10px] text-slate-400">Site Explorer</span>
+                            </a>
+
+                            <a id="advToolSemrush" href="#" target="_blank" rel="noopener noreferrer" class="p-3 rounded-xl border border-slate-200 hover:border-amber-400 hover:bg-amber-50/40 transition flex flex-col items-center justify-center text-center space-y-1 group">
+                                <span class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center text-sm font-black group-hover:scale-110 transition">S</span>
+                                <span class="text-xs font-bold text-slate-800 group-hover:text-amber-700">Semrush</span>
+                                <span class="text-[10px] text-slate-400">Domain Overview</span>
+                            </a>
+
+                            <a id="advToolPsi" href="#" target="_blank" rel="noopener noreferrer" class="p-3 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50/40 transition flex flex-col items-center justify-center text-center space-y-1 group">
+                                <span class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold group-hover:scale-110 transition"><i class="fas fa-gauge-high"></i></span>
+                                <span class="text-xs font-bold text-slate-800 group-hover:text-blue-600">PageSpeed</span>
+                                <span class="text-[10px] text-slate-400">Core Web Vitals</span>
+                            </a>
+
+                            <a id="advToolArchive" href="#" target="_blank" rel="noopener noreferrer" class="p-3 rounded-xl border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/40 transition flex flex-col items-center justify-center text-center space-y-1 group">
+                                <span class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm font-bold group-hover:scale-110 transition"><i class="fas fa-landmark"></i></span>
+                                <span class="text-xs font-bold text-slate-800 group-hover:text-[#6b6bf6]">Archive.org</span>
+                                <span class="text-[10px] text-slate-400">Wayback Timeline</span>
+                            </a>
+
+                            <a id="advToolSimilarWeb" href="#" target="_blank" rel="noopener noreferrer" class="p-3 rounded-xl border border-slate-200 hover:border-cyan-400 hover:bg-cyan-50/40 transition flex flex-col items-center justify-center text-center space-y-1 group">
+                                <span class="w-8 h-8 rounded-lg bg-cyan-100 text-cyan-700 flex items-center justify-center text-sm font-black group-hover:scale-110 transition">SW</span>
+                                <span class="text-xs font-bold text-slate-800 group-hover:text-cyan-700">SimilarWeb</span>
+                                <span class="text-[10px] text-slate-400">Traffic & Rank</span>
+                            </a>
+
+                            <a id="advToolMajestic" href="#" target="_blank" rel="noopener noreferrer" class="p-3 rounded-xl border border-slate-200 hover:border-red-400 hover:bg-red-50/40 transition flex flex-col items-center justify-center text-center space-y-1 group">
+                                <span class="w-8 h-8 rounded-lg bg-red-100 text-red-600 flex items-center justify-center text-sm font-black group-hover:scale-110 transition">M</span>
+                                <span class="text-xs font-bold text-slate-800 group-hover:text-red-600">Majestic</span>
+                                <span class="text-[10px] text-slate-400">Trust Flow</span>
+                            </a>
+
+                            <a id="advToolMoz" href="#" target="_blank" rel="noopener noreferrer" class="p-3 rounded-xl border border-slate-200 hover:border-sky-400 hover:bg-sky-50/40 transition flex flex-col items-center justify-center text-center space-y-1 group">
+                                <span class="w-8 h-8 rounded-lg bg-sky-100 text-sky-600 flex items-center justify-center text-sm font-black group-hover:scale-110 transition">Moz</span>
+                                <span class="text-xs font-bold text-slate-800 group-hover:text-sky-600">Moz Link</span>
+                                <span class="text-[10px] text-slate-400">Domain Authority</span>
+                            </a>
+
+                            <a id="advToolRichResults" href="#" target="_blank" rel="noopener noreferrer" class="p-3 rounded-xl border border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/40 transition flex flex-col items-center justify-center text-center space-y-1 group">
+                                <span class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center text-sm font-bold group-hover:scale-110 transition"><i class="fas fa-check"></i></span>
+                                <span class="text-xs font-bold text-slate-800 group-hover:text-emerald-600">Rich Results</span>
+                                <span class="text-[10px] text-slate-400">Google Validator</span>
+                            </a>
+
+                            <a id="advToolSchema" href="#" target="_blank" rel="noopener noreferrer" class="p-3 rounded-xl border border-slate-200 hover:border-purple-400 hover:bg-purple-50/40 transition flex flex-col items-center justify-center text-center space-y-1 group">
+                                <span class="w-8 h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center text-sm font-bold group-hover:scale-110 transition"><i class="fas fa-code"></i></span>
+                                <span class="text-xs font-bold text-slate-800 group-hover:text-purple-600">Schema.org</span>
+                                <span class="text-[10px] text-slate-400">Syntax Check</span>
+                            </a>
+
+                            <a id="advToolWhois" href="#" target="_blank" rel="noopener noreferrer" class="p-3 rounded-xl border border-slate-200 hover:border-slate-400 hover:bg-slate-100 transition flex flex-col items-center justify-center text-center space-y-1 group">
+                                <span class="w-8 h-8 rounded-lg bg-slate-200 text-slate-700 flex items-center justify-center text-sm font-bold group-hover:scale-110 transition"><i class="fas fa-id-badge"></i></span>
+                                <span class="text-xs font-bold text-slate-800 group-hover:text-slate-900">Whois</span>
+                                <span class="text-[10px] text-slate-400">DomainTools</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 8. TIME MACHINE / WAYBACK DIFF TAB -->
                 <div id="modalContent-timeMachine" class="hidden space-y-4">
                     <!-- Top Info Card -->
                     <div class="bg-gradient-to-r from-slate-900 to-[#191828] text-white p-4 rounded-xl shadow-sm flex flex-wrap items-center justify-between gap-4">
@@ -1228,7 +1423,12 @@
 
             <!-- Modal Footer -->
             <div class="bg-white border-t border-slate-200 px-6 py-3 flex items-center justify-between text-xs text-slate-500">
-                <span>Detailed On-Page Inspector • Powered by Cheerio Engine & Wayback Machine API</span>
+                <span class="flex items-center gap-1.5">
+                    <i class="fas fa-heart text-rose-500"></i> This extension was developed by SEOs at 
+                    <a href="https://detailed.com" target="_blank" rel="noopener noreferrer" class="font-semibold text-indigo-600 hover:underline">Detailed</a> 
+                    and 
+                    <a href="https://ahrefs.com" target="_blank" rel="noopener noreferrer" class="font-semibold text-orange-600 hover:underline">Ahrefs</a>
+                </span>
                 <button onclick="closeDetailedModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-1.5 rounded-lg font-semibold transition">
                     Close
                 </button>
@@ -2356,13 +2556,17 @@
 
             // 1. Fill Overview Tab
             document.getElementById('ovTitleText').textContent = d.overview.title || 'Missing title tag';
-            document.getElementById('ovTitleBadge').textContent = `✓ ${d.overview.titleLength} characters`;
+            document.getElementById('ovTitleBadge').textContent = d.overview.isHydratedTitle 
+                ? `✓ ${d.overview.titleLength} characters (Client SPA ⚡)` 
+                : `✓ ${d.overview.titleLength} characters`;
             document.getElementById('ovTitleBadge').className = d.overview.titleLength > 60 
                 ? 'bg-amber-50 text-amber-600 text-xs px-2 py-0.5 rounded-full font-semibold' 
                 : 'bg-emerald-50 text-emerald-600 text-xs px-2 py-0.5 rounded-full font-semibold';
 
             document.getElementById('ovDescText').textContent = d.overview.description || 'Missing meta description tag';
-            document.getElementById('ovDescBadge').textContent = `✓ ${d.overview.descriptionLength} characters`;
+            document.getElementById('ovDescBadge').textContent = d.overview.isHydratedDescription 
+                ? `✓ ${d.overview.descriptionLength} characters (Client SPA ⚡)` 
+                : `✓ ${d.overview.descriptionLength} characters`;
 
             document.getElementById('ovUrlText').textContent = d.url;
             const rtxt = d.overview.robotsTxt || { status: 'Allowed' };
@@ -2648,6 +2852,9 @@
             // Load Wayback Machine metadata for this URL
             loadWaybackMetaForModal(d.url);
 
+            // Populate Advanced Tab (Detailed & Ahrefs Quick Links, Direct Files, Operators)
+            renderAdvancedTab(d);
+
             // Default to Overview Tab
             switchModalTab('overview');
 
@@ -2660,7 +2867,7 @@
         }
 
         function switchModalTab(tabName) {
-            ['overview', 'headings', 'links', 'images', 'schema', 'social', 'timeMachine'].forEach(t => {
+            ['overview', 'headings', 'links', 'images', 'schema', 'social', 'advanced', 'timeMachine'].forEach(t => {
                 const c = document.getElementById(`modalContent-${t}`);
                 const b = document.getElementById(`modTab-${t}`);
                 if (c) c.classList.add('hidden');
@@ -2673,6 +2880,118 @@
 
             if (tabName === 'timeMachine') {
                 runWaybackDiff();
+            }
+        }
+
+        // Render Advanced Tab Links (Detailed & Ahrefs Parity)
+        function renderAdvancedTab(d) {
+            if (!d) return;
+            const targetUrl = d.finalUrl || d.url;
+            let origin = '';
+            let hostname = '';
+            let domain = '';
+            try {
+                const u = new URL(targetUrl);
+                origin = u.origin;
+                hostname = u.hostname;
+                domain = hostname.replace(/^www\./, '');
+            } catch {
+                origin = targetUrl;
+                domain = targetUrl;
+            }
+
+            // Direct Technical Files
+            const robotsUrl = `${origin}/robots.txt`;
+            const sitemapUrl = `${origin}/sitemap.xml`;
+            
+            const rLink = document.getElementById('advRobotsLink');
+            if (rLink) {
+                rLink.href = robotsUrl;
+                rLink.title = robotsUrl;
+            }
+            const sLink = document.getElementById('advSitemapLink');
+            if (sLink) {
+                sLink.href = sitemapUrl;
+                sLink.title = sitemapUrl;
+            }
+
+            const rBadge = document.getElementById('advRobotsBadge');
+            if (rBadge) {
+                if (d.overview?.robotsTxt?.status === 'Blocked') {
+                    rBadge.className = 'text-[10px] bg-rose-50 text-rose-600 px-2 py-0.5 rounded-full font-bold';
+                    rBadge.textContent = '✕ Blocked';
+                } else {
+                    rBadge.className = 'text-[10px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full font-bold';
+                    rBadge.textContent = '✓ Allowed';
+                }
+            }
+
+            // Google Operators
+            const gSiteDomain = document.getElementById('advGoogleSiteDomain');
+            if (gSiteDomain) {
+                gSiteDomain.href = `https://www.google.com/search?q=site%3A${encodeURIComponent(domain)}`;
+            }
+            const gSiteUrl = document.getElementById('advGoogleSiteUrl');
+            if (gSiteUrl) {
+                gSiteUrl.href = `https://www.google.com/search?q=site%3A${encodeURIComponent(targetUrl)}`;
+            }
+            const gNonHttps = document.getElementById('advGoogleNonHttps');
+            if (gNonHttps) {
+                gNonHttps.href = `https://www.google.com/search?q=-inurl%3Ahttps+site%3A${encodeURIComponent(domain)}`;
+            }
+            const gCache = document.getElementById('advGoogleCache');
+            if (gCache) {
+                gCache.href = `https://www.google.com/search?q=cache%3A${encodeURIComponent(targetUrl)}`;
+            }
+
+            // Third-Party SEO Tools
+            const tAhrefs = document.getElementById('advToolAhrefs');
+            if (tAhrefs) {
+                tAhrefs.href = `https://app.ahrefs.com/site-explorer/overview/v2/subdomains/live?target=${encodeURIComponent(targetUrl)}`;
+            }
+            const tSemrush = document.getElementById('advToolSemrush');
+            if (tSemrush) {
+                tSemrush.href = `https://www.semrush.com/analytics/overview/?q=${encodeURIComponent(targetUrl)}&searchType=url`;
+            }
+            const tPsi = document.getElementById('advToolPsi');
+            if (tPsi) {
+                tPsi.href = `https://pagespeed.web.dev/analysis?url=${encodeURIComponent(targetUrl)}`;
+            }
+            const tArchive = document.getElementById('advToolArchive');
+            if (tArchive) {
+                tArchive.href = `https://web.archive.org/web/*/${encodeURIComponent(targetUrl)}`;
+            }
+            const tSimilarWeb = document.getElementById('advToolSimilarWeb');
+            if (tSimilarWeb) {
+                tSimilarWeb.href = `https://www.similarweb.com/website/${encodeURIComponent(domain)}/`;
+            }
+            const tMajestic = document.getElementById('advToolMajestic');
+            if (tMajestic) {
+                tMajestic.href = `https://majestic.com/reports/site-explorer?folder=&q=${encodeURIComponent(targetUrl)}`;
+            }
+            const tMoz = document.getElementById('advToolMoz');
+            if (tMoz) {
+                tMoz.href = `https://moz.com/link-explorer?site=${encodeURIComponent(targetUrl)}`;
+            }
+            const tRichResults = document.getElementById('advToolRichResults');
+            if (tRichResults) {
+                tRichResults.href = `https://search.google.com/test/rich-results?url=${encodeURIComponent(targetUrl)}`;
+            }
+            const tSchema = document.getElementById('advToolSchema');
+            if (tSchema) {
+                tSchema.href = `https://validator.schema.org/#url=${encodeURIComponent(targetUrl)}`;
+            }
+            const tWhois = document.getElementById('advToolWhois');
+            if (tWhois) {
+                tWhois.href = `https://whois.domaintools.com/${encodeURIComponent(domain)}`;
+            }
+        }
+
+        function copyAdvLink(elId) {
+            const el = document.getElementById(elId);
+            if (el && el.href) {
+                navigator.clipboard.writeText(el.href);
+                alert('Copied link: ' + el.href);
             }
         }
 

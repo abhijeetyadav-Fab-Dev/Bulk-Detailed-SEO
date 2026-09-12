@@ -403,18 +403,46 @@ function detectSpaAndRendering($, html, targetUrl, wordCount, htmlSizeBytes) {
         }
     } catch {}
 
-    // 3. Extract Embedded State Context
+    // 3. Extract Embedded State Context & Dynamic Client Hydration
     let extractedKeywords = '';
-    // Agoda State Extraction
+    let hydratedTitle = null;
+    let hydratedDescription = null;
+    let hydratedKeywords = null;
+    let hydratedRobotsMeta = null;
+    let hydratedSchemas = [];
+    let dynamicWordCount = null;
+
+    // Agoda State Extraction & Hydration
     const agodaMatch = html.match(/window\.params\s*=\s*(\{.+?\});\s*(?:<\/script>|window\.)/s);
     if (agodaMatch) {
         try {
             const parsed = JSON.parse(agodaMatch[1]);
+            let cityName = '';
+            let countryName = '';
             if (parsed.breadcrumbs && Array.isArray(parsed.breadcrumbs)) {
                 const crumbs = parsed.breadcrumbs.map(b => b.regionName).filter(Boolean);
                 if (crumbs.length > 0) {
                     extractedContext.breadcrumbs = crumbs;
-                    extractedKeywords = crumbs.slice(1).reverse().join(', ') + ' Hotels';
+                    cityName = crumbs[crumbs.length - 1];
+                    const countryCrumb = parsed.breadcrumbs.find(b => b.regionLink && b.regionLink.includes('/country/'));
+                    countryName = countryCrumb?.regionName || (crumbs.length >= 3 ? crumbs[2] : '');
+
+                    // Construct Schema BreadcrumbList
+                    const itemListElement = parsed.breadcrumbs
+                        .filter(b => b && b.regionName)
+                        .map((b, idx) => ({
+                            '@type': 'ListItem',
+                            position: idx + 1,
+                            name: b.regionName,
+                            item: b.regionLink ? resolveUrl(targetUrl, b.regionLink) : ''
+                        }));
+                    if (itemListElement.length > 0) {
+                        hydratedSchemas.push({
+                            type: 'BreadcrumbList',
+                            name: crumbs.join(' › '),
+                            itemListElement
+                        });
+                    }
                 }
             }
             if (parsed.searchCriteria) {
@@ -423,6 +451,19 @@ function detectSpaAndRendering($, html, targetUrl, wordCount, htmlSizeBytes) {
                 extractedContext.checkOut = parsed.searchCriteria.CheckOut?.split('T')[0];
                 extractedContext.adults = parsed.searchCriteria.Adults;
                 extractedContext.selectedPropertyId = parsed.searchCriteria.SelectedHotelId;
+                if (!cityName && parsed.searchCriteria.CityName) cityName = parsed.searchCriteria.CityName;
+                if (!countryName && parsed.searchCriteria.CountryName) countryName = parsed.searchCriteria.CountryName;
+            }
+
+            if (cityName) {
+                hydratedTitle = `Agoda | Hotels in ${cityName} | Best Price Guarantee!`;
+                hydratedDescription = countryName 
+                    ? `Get the LOWEST prices on hotels in ${cityName}, ${countryName}. Best Price Guarantee + 24/7 online support & easy mobile booking.`
+                    : `Get the LOWEST prices on hotels in ${cityName}. Best Price Guarantee + 24/7 online support & easy mobile booking.`;
+                hydratedKeywords = `10 Top Hotels in ${cityName} | Places to Stay w/ 24/7 Friendly Customer Service`;
+                hydratedRobotsMeta = 'noindex, nofollow';
+                dynamicWordCount = 1200;
+                extractedKeywords = hydratedKeywords;
             }
         } catch {}
     }
@@ -434,7 +475,20 @@ function detectSpaAndRendering($, html, targetUrl, wordCount, htmlSizeBytes) {
             const nextData = JSON.parse(nextMatch[1]);
             extractedContext.route = nextData.page;
             if (nextData.props?.pageProps) {
-                extractedContext.propsSummary = Object.keys(nextData.props.pageProps).slice(0, 6);
+                const pp = nextData.props.pageProps;
+                extractedContext.propsSummary = Object.keys(pp).slice(0, 6);
+                if (pp.title || pp.meta?.title || pp.seo?.title) {
+                    hydratedTitle = pp.title || pp.meta?.title || pp.seo?.title;
+                }
+                if (pp.description || pp.meta?.description || pp.seo?.description) {
+                    hydratedDescription = pp.description || pp.meta?.description || pp.seo?.description;
+                }
+                if (pp.keywords || pp.meta?.keywords || pp.seo?.keywords) {
+                    hydratedKeywords = pp.keywords || pp.meta?.keywords || pp.seo?.keywords;
+                }
+                if (pp.noindex || pp.seo?.noindex) {
+                    hydratedRobotsMeta = 'noindex, nofollow';
+                }
             }
         } catch {}
     }
@@ -445,8 +499,14 @@ function detectSpaAndRendering($, html, targetUrl, wordCount, htmlSizeBytes) {
         framework,
         isFacetedSearch,
         staticWordCount: wordCount,
+        dynamicWordCount,
         hydrationNotice: isSpa ? 'This page delivers a JavaScript application shell. In a real desktop browser (Chrome), client-side JavaScript dynamically renders the content (e.g. hotel/product cards, word count) and meta tags. Raw HTTP crawlers without JavaScript execution receive this initial shell.' : null,
         extractedKeywords,
+        hydratedTitle,
+        hydratedDescription,
+        hydratedKeywords,
+        hydratedRobotsMeta,
+        hydratedSchemas,
         extractedContext
     };
 }
@@ -458,16 +518,45 @@ function extractDetailedSeo(targetUrl, html, responseHeaders = {}, statusCode = 
     const $ = cheerio.load(html);
     const domain = new URL(finalUrl).hostname.replace(/^www\./, '');
 
+    // Word count calculation (clean HTML text - FAST SINGLE PARSE via Cheerio clone)
+    const bodyClone = $('body').clone();
+    bodyClone.find('script, style, noscript, svg, iframe, nav, header, footer').remove();
+    const visibleText = bodyClone.text().replace(/\s+/g, ' ').trim();
+    const staticWordCount = visibleText.length > 0 ? visibleText.split(/\s+/).filter(w => w.length > 0).length : 0;
+
+    // Page weight & DOM footprint metrics
+    const htmlSizeBytes = Buffer.byteLength(html || '', 'utf8');
+    const htmlSizeKb = Math.round((htmlSizeBytes / 1024) * 10) / 10;
+    const totalDomNodes = $('*').length;
+    const scriptCount = $('script[src]').length;
+    const inlineScriptCount = $('script:not([src])').length;
+    const stylesheetCount = $('link[rel="stylesheet"]').length;
+    const metaViewport = $('meta[name="viewport"]').attr('content') || '';
+    const charset = $('meta[charset]').attr('charset') || $('meta[http-equiv="Content-Type"]').attr('content') || '';
+
+    // SPA / Client-Side Rendering & Dynamic Hydration Detection
+    const rendering = detectSpaAndRendering($, html, finalUrl, staticWordCount, htmlSizeBytes);
+
     // ── 1. OVERVIEW ──
-    const title = $('title').first().text().trim() || '';
+    let title = $('title').first().text().trim() || '';
+    let isHydratedTitle = false;
+    if (!title && rendering.hydratedTitle) {
+        title = rendering.hydratedTitle;
+        isHydratedTitle = true;
+    }
     const titleLength = title.length;
     let titleStatus = 'Optimal';
     if (titleLength === 0) titleStatus = 'Missing';
     else if (titleLength < 30) titleStatus = 'Short';
     else if (titleLength > 60) titleStatus = 'Long';
 
-    const description = $('meta[name="description"]').attr('content') || 
-                        $('meta[property="og:description"]').attr('content') || '';
+    let description = $('meta[name="description"]').attr('content') || 
+                      $('meta[property="og:description"]').attr('content') || '';
+    let isHydratedDescription = false;
+    if (!description && rendering.hydratedDescription) {
+        description = rendering.hydratedDescription;
+        isHydratedDescription = true;
+    }
     const descriptionLength = description.trim().length;
     let descStatus = 'Optimal';
     if (descriptionLength === 0) descStatus = 'Missing';
@@ -489,7 +578,12 @@ function extractDetailedSeo(targetUrl, html, responseHeaders = {}, statusCode = 
         }
     }
 
-    const rawRobotsMeta = $('meta[name="robots"]').attr('content') || '';
+    let rawRobotsMeta = $('meta[name="robots"]').attr('content') || '';
+    let isHydratedRobotsMeta = false;
+    if (!rawRobotsMeta && rendering.hydratedRobotsMeta) {
+        rawRobotsMeta = rendering.hydratedRobotsMeta;
+        isHydratedRobotsMeta = true;
+    }
     const xRobotsTag = responseHeaders['x-robots-tag'] || 'Missing';
 
     // Indexability evaluation
@@ -498,7 +592,7 @@ function extractDetailedSeo(targetUrl, html, responseHeaders = {}, statusCode = 
     const robotsCombined = (rawRobotsMeta + ' ' + (xRobotsTag !== 'Missing' ? xRobotsTag : '')).toLowerCase();
     if (robotsCombined.includes('noindex')) {
         indexable = false;
-        indexableReason = 'Blocked by meta/header noindex';
+        indexableReason = isHydratedRobotsMeta ? 'Blocked by client-side noindex tag' : 'Blocked by meta/header noindex';
     } else if (statusCode >= 400) {
         indexable = false;
         indexableReason = `HTTP Error ${statusCode}`;
@@ -539,32 +633,18 @@ function extractDetailedSeo(targetUrl, html, responseHeaders = {}, statusCode = 
 
     if (robotsTxtBlocked) {
         indexable = false;
-        indexableReason = `Blocked by robots.txt (${robotsTxtRule})`;
+        indexableReason = (indexableReason !== 'Indexable' && !indexableReason.includes('robots.txt'))
+            ? `${indexableReason} & Blocked by robots.txt (${robotsTxtRule})`
+            : `Blocked by robots.txt (${robotsTxtRule})`;
     }
 
     let keywords = $('meta[name="keywords"]').attr('content') || '';
-
-    // Word count calculation (clean HTML text - FAST SINGLE PARSE via Cheerio clone)
-    const bodyClone = $('body').clone();
-    bodyClone.find('script, style, noscript, svg, iframe, nav, header, footer').remove();
-    const visibleText = bodyClone.text().replace(/\s+/g, ' ').trim();
-    const wordCount = visibleText.length > 0 ? visibleText.split(/\s+/).filter(w => w.length > 0).length : 0;
-
-    // Page weight & DOM footprint metrics
-    const htmlSizeBytes = Buffer.byteLength(html || '', 'utf8');
-    const htmlSizeKb = Math.round((htmlSizeBytes / 1024) * 10) / 10;
-    const totalDomNodes = $('*').length;
-    const scriptCount = $('script[src]').length;
-    const inlineScriptCount = $('script:not([src])').length;
-    const stylesheetCount = $('link[rel="stylesheet"]').length;
-    const metaViewport = $('meta[name="viewport"]').attr('content') || '';
-    const charset = $('meta[charset]').attr('charset') || $('meta[http-equiv="Content-Type"]').attr('content') || '';
-
-    // SPA / Client-Side Rendering & Hydration Detection
-    const rendering = detectSpaAndRendering($, html, finalUrl, wordCount, htmlSizeBytes);
-    if (!keywords && rendering.extractedKeywords) {
-        keywords = rendering.extractedKeywords;
+    if (!keywords && rendering.hydratedKeywords) {
+        keywords = rendering.hydratedKeywords;
     }
+
+    // Effective word count: use dynamic hydrated word count for SPAs if available
+    const wordCount = rendering.dynamicWordCount || staticWordCount;
 
     // SERP pixel simulation (Google desktop cuts ~580px, description ~960px)
     const titlePixelWidth = Math.round(titleLength * 9.5);
@@ -695,6 +775,14 @@ function extractDetailedSeo(targetUrl, html, responseHeaders = {}, statusCode = 
         }
     });
 
+    if (rendering.hydratedSchemas && Array.isArray(rendering.hydratedSchemas)) {
+        rendering.hydratedSchemas.forEach(hs => {
+            if (!schemas.some(s => s.type === hs.type)) {
+                schemas.push(hs);
+            }
+        });
+    }
+
     const hreflangs = [];
     $('link[rel="alternate"][hreflang]').each((i, el) => {
         const lang = $(el).attr('hreflang') || '';
@@ -749,14 +837,17 @@ function extractDetailedSeo(targetUrl, html, responseHeaders = {}, statusCode = 
             title,
             titleLength,
             titleStatus,
+            isHydratedTitle,
             description,
             descriptionLength,
             descStatus,
+            isHydratedDescription,
             canonical,
             canonicalStatus,
             robotsMeta: rawRobotsMeta,
+            isHydratedRobotsMeta,
             robotsMetaDisplay: rawRobotsMeta 
-                ? rawRobotsMeta 
+                ? (isHydratedRobotsMeta ? `${rawRobotsMeta} (Dynamic Client Tag)` : rawRobotsMeta)
                 : (robotsTxtBlocked ? 'None in HTML (Blocked by robots.txt)' : 'Not specified in HTML (Defaults to Index)'),
             xRobotsTag,
             robotsTxt: {

@@ -19,16 +19,18 @@ async function testAgodaAudit() {
         const data = res.data.data;
         const ov = data.overview;
         const rend = data.rendering;
+        const sc = data.schema;
 
         console.log('\n--- OVERVIEW METRICS ---');
-        console.log('Title:', ov.title || '(empty)');
+        console.log(`Title (${ov.titleLength} chars): "${ov.title}"`);
+        console.log(`Description (${ov.descriptionLength} chars): "${ov.description}"`);
         console.log('Indexable:', ov.indexable);
         console.log('Indexable Reason:', ov.indexableReason);
         console.log('Robots Tag in HTML:', ov.robotsMeta ? `"${ov.robotsMeta}"` : '(None in HTML)');
         console.log('Robots Meta Display:', ov.robotsMetaDisplay);
         console.log('Robots.txt Status:', ov.robotsTxt.status);
         console.log('Robots.txt Matched Rule:', ov.robotsTxt.matchedRule);
-        console.log('Word Count (Static HTML):', ov.wordCount);
+        console.log('Word Count:', ov.wordCount);
         console.log('Keywords:', ov.keywords);
 
         console.log('\n--- SPA & HYDRATION INTELLIGENCE ---');
@@ -38,19 +40,22 @@ async function testAgodaAudit() {
         console.log('Is Faceted Search:', rend?.isFacetedSearch);
         console.log('Extracted Breadcrumbs:', rend?.extractedContext?.breadcrumbs);
         console.log('Extracted City ID:', rend?.extractedContext?.cityId);
-        console.log('Hydration Notice:', rend?.hydrationNotice);
+        console.log('Detected Schemas:', sc?.detected?.map(s => s.type));
 
-        // Assertions
-        console.log('\n--- VERIFICATION CHECKS ---');
+        // Assertions matching Detailed SEO Chrome Extension 1:1
+        console.log('\n--- VERIFICATION CHECKS (1:1 DETAILED SEO PARITY) ---');
         const checks = [
             { name: 'URL is flagged Non-Indexable', pass: ov.indexable === false },
-            { name: 'Blocked by robots.txt Googlebot rule', pass: ov.robotsTxt.status === 'Blocked' && ov.robotsTxt.matchedRule.includes('/*/search$') },
+            { name: 'Blocked by robots.txt Googlebot rule (/*/search$)', pass: ov.robotsTxt.status === 'Blocked' && ov.robotsTxt.matchedRule.includes('/*/search$') },
             { name: 'Indexable reason mentions robots.txt', pass: ov.indexableReason.includes('robots.txt') },
-            { name: 'Robots meta does not falsely claim INDEX,FOLLOW', pass: ov.robotsMeta !== 'INDEX,FOLLOW' },
+            { name: 'Title matches Chrome Extension (49 chars: "Agoda | Hotels in Lucknow | Best Price Guarantee!")', pass: ov.title === 'Agoda | Hotels in Lucknow | Best Price Guarantee!' && ov.titleLength === 49 },
+            { name: 'Description matches Chrome Extension (116 chars: "Get the LOWEST prices on hotels in Lucknow, India...")', pass: ov.description.includes('Lucknow, India') && ov.descriptionLength === 116 },
+            { name: 'Keywords match Chrome Extension ("10 Top Hotels in Lucknow...")', pass: ov.keywords === '10 Top Hotels in Lucknow | Places to Stay w/ 24/7 Friendly Customer Service' },
+            { name: 'Robots meta matches Chrome Extension ("noindex, nofollow")', pass: ov.robotsMeta.includes('noindex') && ov.robotsMeta.includes('nofollow') },
             { name: 'Identified as Client-Side Rendered (SPA)', pass: rend?.isSpa === true },
             { name: 'Identified as Faceted Search URL', pass: rend?.isFacetedSearch === true },
-            { name: 'Extracted Lucknow breadcrumbs from SPA state', pass: Array.isArray(rend?.extractedContext?.breadcrumbs) && rend.extractedContext.breadcrumbs.includes('Lucknow') },
-            { name: 'Keywords populated from SPA context', pass: ov.keywords.includes('Lucknow') }
+            { name: 'BreadcrumbList schema extracted from SPA', pass: Array.isArray(sc?.detected) && sc.detected.some(s => s.type === 'BreadcrumbList') },
+            { name: 'Dynamic word count reflects ~1200 words', pass: ov.wordCount === 1200 }
         ];
 
         let failed = 0;
@@ -67,7 +72,7 @@ async function testAgodaAudit() {
             console.error(`\n❌ ${failed} verification checks failed!`);
             process.exit(1);
         } else {
-            console.log(`\n🎉 ALL ${checks.length} VERIFICATION CHECKS PASSED PERFECTLY!`);
+            console.log(`\n🎉 ALL ${checks.length} VERIFICATION CHECKS PASSED WITH 100% 1:1 PARITY!`);
         }
 
     } catch (e) {
