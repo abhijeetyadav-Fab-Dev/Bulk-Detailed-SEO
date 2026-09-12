@@ -74,12 +74,15 @@ function resolveUrl(base, relative) {
 
 // Global in-memory cache for robots.txt rules per domain
 const domainRobotsCache = new Map();
+// In-flight fetch deduplication to prevent duplicate network calls across concurrent workers
+const inFlightRobots = new Map();
 
-// Helper: Check if a URL pathname matches any robots.txt disallow rules
-function isPathDisallowed(pathname, disallowRules = []) {
+// Helper: Check if a URL pathname or full path+query matches any robots.txt disallow rules
+function checkPathOrQueryDisallowed(pathname, search, disallowRules = []) {
     if (!pathname || !Array.isArray(disallowRules) || disallowRules.length === 0) {
         return { disallowed: false };
     }
+    const fullPathAndQuery = pathname + (search || '');
     for (const rule of disallowRules) {
         if (!rule || rule === '') continue;
         try {
@@ -88,12 +91,17 @@ function isPathDisallowed(pathname, disallowRules = []) {
             let pattern = cleanRule.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
             pattern = '^' + pattern + (hasEndAnchor ? '$' : '');
             const re = new RegExp(pattern);
-            if (re.test(pathname)) {
+            if (re.test(pathname) || re.test(fullPathAndQuery)) {
                 return { disallowed: true, matchedRule: rule };
             }
         } catch {}
     }
     return { disallowed: false };
+}
+
+// Backward-compatible alias
+function isPathDisallowed(pathname, disallowRules = []) {
+    return checkPathOrQueryDisallowed(pathname, '', disallowRules);
 }
 
 // Helper: Categorize sitemap URL by business vertical
@@ -112,13 +120,14 @@ function categorizeSitemapUrl(url) {
 // Helper: Full Parser for robots.txt with AI Bots & Multi-Sitemaps
 function parseRobotsTxt(rawText, domain = '') {
     if (!rawText || typeof rawText !== 'string') {
-        return { sitemaps: [], categories: {}, totalSitemaps: 0, aiBots: {}, summary: {}, defaultDisallows: [] };
+        return { sitemaps: [], categories: {}, totalSitemaps: 0, aiBots: {}, summary: {}, defaultDisallows: [], googlebotDisallows: [] };
     }
 
     const lines = rawText.split(/\r?\n/);
     const groups = {};
     const sitemaps = [];
     let currentAgents = [];
+    let prevWasUa = false;
 
     for (let line of lines) {
         const hashIdx = line.indexOf('#');
@@ -145,12 +154,19 @@ function parseRobotsTxt(rawText, domain = '') {
         const uaMatch = line.match(/^User-agent:\s*(.+)$/i);
         if (uaMatch) {
             const uaName = uaMatch[1].trim();
-            if (!groups[uaName]) {
-                groups[uaName] = { disallow: [], allow: [], rawName: uaName };
+            const normalizedUa = uaName.toLowerCase();
+            if (!prevWasUa) {
+                currentAgents = [];
             }
-            currentAgents.push(uaName);
+            currentAgents.push(normalizedUa);
+            if (!groups[normalizedUa]) {
+                groups[normalizedUa] = { disallow: [], allow: [], rawName: uaName };
+            }
+            prevWasUa = true;
             continue;
         }
+
+        prevWasUa = false;
 
         // Check for Disallow / Allow
         const disMatch = line.match(/^Disallow:\s*(.*)$/i);
@@ -184,6 +200,7 @@ function parseRobotsTxt(rawText, domain = '') {
 
     const aiBots = {};
     const defaultGroup = groups['*'] || { disallow: [], allow: [] };
+    const googlebotGroup = groups['googlebot'] || { disallow: [], allow: [] };
 
     for (const bot of trackedAiBots) {
         const matchedKey = Object.keys(groups).find(k => bot.pattern.test(k));
@@ -283,12 +300,154 @@ function parseRobotsTxt(rawText, domain = '') {
         aiReadinessScore,
         aiSummary,
         defaultDisallows: defaultGroup.disallow || [],
+        googlebotDisallows: googlebotGroup.disallow || [],
         summary: {
             totalUserAgentGroups: Object.keys(groups).length,
             totalDisallows,
             totalAllows,
-            defaultDisallowCount: defaultGroup.disallow.length
+            defaultDisallowCount: defaultGroup.disallow.length,
+            googlebotDisallowCount: googlebotGroup.disallow.length
         }
+    };
+}
+
+// Helper: Proactively fetch, parse and cache domain robots.txt rules
+async function getOrFetchDomainRobots(targetUrl) {
+    if (!targetUrl) return { disallow: [], googlebotDisallow: [] };
+    try {
+        const parsed = new URL(targetUrl);
+        const domain = parsed.hostname.replace(/^www\./, '').toLowerCase();
+        const origin = parsed.origin;
+
+        if (domainRobotsCache.has(domain)) {
+            return domainRobotsCache.get(domain);
+        }
+
+        if (inFlightRobots.has(domain)) {
+            return inFlightRobots.get(domain);
+        }
+
+        const fetchTask = (async () => {
+            try {
+                const robotsUrl = `${origin}/robots.txt`;
+                logDebug({ level: 'INFO', url: robotsUrl, message: `Proactively fetching robots.txt for domain ${domain}` });
+                const resp = await smartFetchText(robotsUrl, 3500);
+                if (resp.ok && resp.data) {
+                    const parsedData = parseRobotsTxt(resp.data, domain);
+                    const cacheEntry = {
+                        disallow: parsedData.defaultDisallows || [],
+                        googlebotDisallow: parsedData.googlebotDisallows || [],
+                        aiBots: parsedData.aiBots || {},
+                        updatedAt: Date.now()
+                    };
+                    domainRobotsCache.set(domain, cacheEntry);
+                    return cacheEntry;
+                }
+            } catch (err) {
+                logDebug({ level: 'WARN', message: `Proactive robots.txt fetch failed for ${domain}: ${err.message}` });
+            } finally {
+                inFlightRobots.delete(domain);
+            }
+
+            const fallbackEntry = { disallow: [], googlebotDisallow: [], updatedAt: Date.now() };
+            domainRobotsCache.set(domain, fallbackEntry);
+            return fallbackEntry;
+        })();
+
+        inFlightRobots.set(domain, fetchTask);
+        return await fetchTask;
+    } catch {
+        return { disallow: [], googlebotDisallow: [] };
+    }
+}
+
+// Helper: Client-Side Rendered (SPA) & Dynamic Hydration Intelligence
+function detectSpaAndRendering($, html, targetUrl, wordCount, htmlSizeBytes) {
+    let framework = null;
+    let isSpa = false;
+    const extractedContext = {};
+
+    // 1. Detect Frameworks & SPA Markers
+    if (html.includes('window.params') || html.includes('agoda.pageConfig') || $('div#content[data-page]').length > 0) {
+        framework = 'Agoda React Single Page App';
+        isSpa = true;
+    } else if ($('#__NEXT_DATA__').length > 0 || html.includes('/_next/static/')) {
+        framework = 'Next.js (React)';
+        isSpa = true;
+    } else if ($('#__NUXT__').length > 0 || html.includes('/_nuxt/')) {
+        framework = 'Nuxt.js (Vue)';
+        isSpa = true;
+    } else if ($('#root, div[data-reactroot]').length > 0 || html.includes('react-dom')) {
+        framework = 'React SPA';
+        isSpa = true;
+    } else if ($('#app[data-v-]').length > 0 || html.includes('vue.global')) {
+        framework = 'Vue.js SPA';
+        isSpa = true;
+    } else if ($('[ng-version], [ng-app]').length > 0) {
+        framework = 'Angular App';
+        isSpa = true;
+    } else if (wordCount < 100 && htmlSizeBytes > 25000 && $('script').length > 5) {
+        framework = 'Client-Side JavaScript App';
+        isSpa = true;
+    }
+
+    // 2. Detect Faceted / Dynamic Search URLs
+    let isFacetedSearch = false;
+    try {
+        const u = new URL(targetUrl);
+        const p = u.pathname.toLowerCase();
+        if (p.includes('/search') || p.includes('/find') || p.includes('/filter') || p.includes('/results') || 
+            u.searchParams.has('campaignid') || u.searchParams.has('checkin') || u.searchParams.has('city') || 
+            u.searchParams.has('query') || u.searchParams.has('q')) {
+            isFacetedSearch = true;
+        }
+    } catch {}
+
+    // 3. Extract Embedded State Context
+    let extractedKeywords = '';
+    // Agoda State Extraction
+    const agodaMatch = html.match(/window\.params\s*=\s*(\{.+?\});\s*(?:<\/script>|window\.)/s);
+    if (agodaMatch) {
+        try {
+            const parsed = JSON.parse(agodaMatch[1]);
+            if (parsed.breadcrumbs && Array.isArray(parsed.breadcrumbs)) {
+                const crumbs = parsed.breadcrumbs.map(b => b.regionName).filter(Boolean);
+                if (crumbs.length > 0) {
+                    extractedContext.breadcrumbs = crumbs;
+                    extractedKeywords = crumbs.slice(1).reverse().join(', ') + ' Hotels';
+                }
+            }
+            if (parsed.searchCriteria) {
+                extractedContext.cityId = parsed.searchCriteria.CityId;
+                extractedContext.checkIn = parsed.searchCriteria.CheckIn?.split('T')[0];
+                extractedContext.checkOut = parsed.searchCriteria.CheckOut?.split('T')[0];
+                extractedContext.adults = parsed.searchCriteria.Adults;
+                extractedContext.selectedPropertyId = parsed.searchCriteria.SelectedHotelId;
+            }
+        } catch {}
+    }
+
+    // Next.js State Extraction
+    const nextMatch = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i);
+    if (nextMatch) {
+        try {
+            const nextData = JSON.parse(nextMatch[1]);
+            extractedContext.route = nextData.page;
+            if (nextData.props?.pageProps) {
+                extractedContext.propsSummary = Object.keys(nextData.props.pageProps).slice(0, 6);
+            }
+        } catch {}
+    }
+
+    return {
+        type: isSpa ? 'Client-Side Rendered (SPA)' : 'Server-Side Rendered (SSR)',
+        isSpa,
+        framework,
+        isFacetedSearch,
+        staticWordCount: wordCount,
+        hydrationNotice: isSpa ? 'This page delivers a JavaScript application shell. In a real desktop browser (Chrome), client-side JavaScript dynamically renders the content (e.g. hotel/product cards, word count) and meta tags. Raw HTTP crawlers without JavaScript execution receive this initial shell.' : null,
+        extractedKeywords,
+        extractedContext
     };
 }
 
@@ -330,13 +489,13 @@ function extractDetailedSeo(targetUrl, html, responseHeaders = {}, statusCode = 
         }
     }
 
-    const robotsMeta = $('meta[name="robots"]').attr('content') || '';
+    const rawRobotsMeta = $('meta[name="robots"]').attr('content') || '';
     const xRobotsTag = responseHeaders['x-robots-tag'] || 'Missing';
 
     // Indexability evaluation
     let indexable = true;
     let indexableReason = 'Indexable';
-    const robotsCombined = (robotsMeta + ' ' + (xRobotsTag !== 'Missing' ? xRobotsTag : '')).toLowerCase();
+    const robotsCombined = (rawRobotsMeta + ' ' + (xRobotsTag !== 'Missing' ? xRobotsTag : '')).toLowerCase();
     if (robotsCombined.includes('noindex')) {
         indexable = false;
         indexableReason = 'Blocked by meta/header noindex';
@@ -345,24 +504,45 @@ function extractDetailedSeo(targetUrl, html, responseHeaders = {}, statusCode = 
         indexableReason = `HTTP Error ${statusCode}`;
     }
 
-    // Check Robots.txt disallow rules if cached for domain
+    // Check Robots.txt disallow rules (Googlebot first, then default '*')
     let robotsTxtBlocked = false;
     let robotsTxtRule = null;
+    let robotsTxtAgent = 'None';
     const cachedRobots = domainRobotsCache.get(domain);
-    if (cachedRobots && cachedRobots.disallow && cachedRobots.disallow.length > 0) {
+    if (cachedRobots) {
         try {
             const parsedFinal = new URL(finalUrl);
-            const check = isPathDisallowed(parsedFinal.pathname, cachedRobots.disallow);
-            if (check.disallowed) {
-                robotsTxtBlocked = true;
-                robotsTxtRule = check.matchedRule;
-                indexable = false;
-                indexableReason = `Blocked by robots.txt (${check.matchedRule})`;
+            const pathName = parsedFinal.pathname;
+            const searchStr = parsedFinal.search;
+
+            // 1. Googlebot check first (highest authority for Google Search SEO)
+            if (cachedRobots.googlebotDisallow && cachedRobots.googlebotDisallow.length > 0) {
+                const gCheck = checkPathOrQueryDisallowed(pathName, searchStr, cachedRobots.googlebotDisallow);
+                if (gCheck.disallowed) {
+                    robotsTxtBlocked = true;
+                    robotsTxtRule = `Googlebot: ${gCheck.matchedRule}`;
+                    robotsTxtAgent = 'Googlebot';
+                }
+            }
+
+            // 2. Default crawler '*' check
+            if (!robotsTxtBlocked && cachedRobots.disallow && cachedRobots.disallow.length > 0) {
+                const dCheck = checkPathOrQueryDisallowed(pathName, searchStr, cachedRobots.disallow);
+                if (dCheck.disallowed) {
+                    robotsTxtBlocked = true;
+                    robotsTxtRule = `*: ${dCheck.matchedRule}`;
+                    robotsTxtAgent = '*';
+                }
             }
         } catch {}
     }
 
-    const keywords = $('meta[name="keywords"]').attr('content') || '';
+    if (robotsTxtBlocked) {
+        indexable = false;
+        indexableReason = `Blocked by robots.txt (${robotsTxtRule})`;
+    }
+
+    let keywords = $('meta[name="keywords"]').attr('content') || '';
 
     // Word count calculation (clean HTML text - FAST SINGLE PARSE via Cheerio clone)
     const bodyClone = $('body').clone();
@@ -379,6 +559,12 @@ function extractDetailedSeo(targetUrl, html, responseHeaders = {}, statusCode = 
     const stylesheetCount = $('link[rel="stylesheet"]').length;
     const metaViewport = $('meta[name="viewport"]').attr('content') || '';
     const charset = $('meta[charset]').attr('charset') || $('meta[http-equiv="Content-Type"]').attr('content') || '';
+
+    // SPA / Client-Side Rendering & Hydration Detection
+    const rendering = detectSpaAndRendering($, html, finalUrl, wordCount, htmlSizeBytes);
+    if (!keywords && rendering.extractedKeywords) {
+        keywords = rendering.extractedKeywords;
+    }
 
     // SERP pixel simulation (Google desktop cuts ~580px, description ~960px)
     const titlePixelWidth = Math.round(titleLength * 9.5);
@@ -546,6 +732,7 @@ function extractDetailedSeo(targetUrl, html, responseHeaders = {}, statusCode = 
         finalUrl,
         statusCode,
         responseTimeMs,
+        rendering,
         pageWeight: {
             htmlSizeKb,
             htmlSizeBytes,
@@ -567,11 +754,15 @@ function extractDetailedSeo(targetUrl, html, responseHeaders = {}, statusCode = 
             descStatus,
             canonical,
             canonicalStatus,
-            robotsMeta: robotsMeta || 'INDEX,FOLLOW',
+            robotsMeta: rawRobotsMeta,
+            robotsMetaDisplay: rawRobotsMeta 
+                ? rawRobotsMeta 
+                : (robotsTxtBlocked ? 'None in HTML (Blocked by robots.txt)' : 'Not specified in HTML (Defaults to Index)'),
             xRobotsTag,
             robotsTxt: {
                 status: robotsTxtBlocked ? 'Blocked' : 'Allowed',
-                matchedRule: robotsTxtRule
+                matchedRule: robotsTxtRule,
+                checkedAgent: robotsTxtAgent
             },
             indexable,
             indexableReason,
@@ -687,7 +878,11 @@ async function fetchAndAuditUrl(rawUrl, timeoutMs = 10000) {
     logDebug({ level: 'INFO', url, message: 'Initiating fetch' });
 
     try {
-        const fetchRes = await smartFetchText(url, timeoutMs);
+        // Concurrently fetch page HTML and ensure domain robots.txt rules are cached
+        const [fetchRes] = await Promise.all([
+            smartFetchText(url, timeoutMs),
+            getOrFetchDomainRobots(url)
+        ]);
         const responseTimeMs = Date.now() - startTime;
 
         if (fetchRes.data) {
@@ -697,6 +892,17 @@ async function fetchAndAuditUrl(rawUrl, timeoutMs = 10000) {
                 message: `Fetched in ${responseTimeMs}ms with status ${fetchRes.status}`,
                 details: { finalUrl: fetchRes.finalUrl, ttfb: responseTimeMs }
             });
+
+            // If finalUrl redirected across domains, ensure destination domain robots.txt is loaded
+            if (fetchRes.finalUrl) {
+                try {
+                    const origHost = new URL(url).hostname.replace(/^www\./, '').toLowerCase();
+                    const destHost = new URL(fetchRes.finalUrl).hostname.replace(/^www\./, '').toLowerCase();
+                    if (origHost !== destHost) {
+                        await getOrFetchDomainRobots(fetchRes.finalUrl);
+                    }
+                } catch {}
+            }
 
             const auditData = extractDetailedSeo(
                 url,
@@ -862,8 +1068,10 @@ app.post('/api/extract-sitemap', async (req, res) => {
                 const domain = parsedTarget.hostname.replace(/^www\./, '');
                 const robotsAnalysis = parseRobotsTxt(robResp.data, domain);
 
-                domainRobotsCache.set(domain, {
+                domainRobotsCache.set(domain.toLowerCase(), {
                     disallow: robotsAnalysis.defaultDisallows || [],
+                    googlebotDisallow: robotsAnalysis.googlebotDisallows || [],
+                    aiBots: robotsAnalysis.aiBots || {},
                     updatedAt: Date.now()
                 });
 
@@ -1032,8 +1240,10 @@ app.post('/api/robots-inspect', async (req, res) => {
         }
 
         const analysis = parseRobotsTxt(robotsData.data, hostDomain);
-        domainRobotsCache.set(hostDomain, {
+        domainRobotsCache.set(hostDomain.toLowerCase(), {
             disallow: analysis.defaultDisallows || [],
+            googlebotDisallow: analysis.googlebotDisallows || [],
+            aiBots: analysis.aiBots || {},
             updatedAt: Date.now()
         });
 

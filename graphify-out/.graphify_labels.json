@@ -11,5 +11,5 @@
   "9": "test-robots-verification.js",
   "10": "test-wayback.js",
   "11": "test-wayback-suite.js",
-  "12": "categorizeSitemapUrl"
+  "12": "test-agoda-verification.js"
 }

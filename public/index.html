@@ -860,6 +860,23 @@
                         </div>
                     </div>
 
+                    <!-- SPA & Dynamic Hydration Intelligence Card -->
+                    <div id="ovSpaIntelligenceCard" class="hidden bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 space-y-2.5 shadow-xs">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="w-6 h-6 rounded-lg bg-amber-500 text-white flex items-center justify-center text-xs"><i class="fas fa-bolt"></i></span>
+                                <span class="text-xs font-bold text-amber-900 uppercase">Client-Side Rendered (SPA) Intelligence</span>
+                            </div>
+                            <span id="ovSpaFrameworkBadge" class="bg-amber-200/70 text-amber-900 text-[10px] px-2.5 py-0.5 rounded-full font-bold">SPA Detected</span>
+                        </div>
+                        <p id="ovSpaNoticeText" class="text-xs text-amber-950 leading-relaxed">
+                            This page is a dynamic Client-Side Rendered application. In a desktop browser (Chrome), JavaScript executes to hydrate the catalog and dynamic meta tags. Raw HTTP scrapers receive this initial application shell.
+                        </p>
+                        <div id="ovSpaContextDetails" class="pt-2 border-t border-amber-200/70 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                            <!-- Injected dynamically: Breadcrumbs, Location, Search parameters -->
+                        </div>
+                    </div>
+
                     <!-- Google SERP Snippet Simulator -->
                     <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
                         <div class="flex items-center justify-between">
@@ -2221,8 +2238,9 @@
                         </td>
                         <td class="py-3 px-3">
                             <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold ${indexColor}" title="${escapeHtml(d.overview.indexableReason || '')}">
-                                ${d.overview.indexable ? '✓ Indexable' : (d.overview.robotsTxt?.status === 'Blocked' ? '✕ Blocked (Robots)' : '✕ Noindex')}
+                                ${d.overview.indexable ? '✓ Indexable' : (d.overview.robotsTxt?.status === 'Blocked' ? '✕ Blocked (Robots)' : '✕ Non-Indexable')}
                             </span>
+                            ${!d.overview.indexable ? `<p class="text-[10px] text-rose-500 font-mono truncate max-w-[130px] mt-0.5" title="${escapeHtml(d.overview.indexableReason || '')}">${escapeHtml(d.overview.indexableReason || '')}</p>` : ''}
                         </td>
                         <td class="py-3 px-3">
                             <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold ${canonColor}">
@@ -2239,6 +2257,7 @@
                         </td>
                         <td class="py-3 px-3 text-right font-mono font-bold text-slate-700">
                             ${d.overview.wordCount.toLocaleString()}
+                            ${d.rendering?.isSpa ? `<span class="bg-amber-100 text-amber-800 text-[9px] font-bold px-1.5 py-0.5 rounded ml-1" title="Client-Side Rendered (SPA): Hydrates full DOM dynamically in browser">SPA ⚡</span>` : ''}
                         </td>
                         <td class="py-3 px-3 text-center">
                             <button onclick="event.stopPropagation(); openDetailedModal(${originalIndex})" class="bg-[#6b6bf6]/10 hover:bg-[#6b6bf6] text-[#6b6bf6] hover:text-white font-bold text-[11px] px-2.5 py-1 rounded-lg transition">
@@ -2346,19 +2365,41 @@
             document.getElementById('ovDescBadge').textContent = `✓ ${d.overview.descriptionLength} characters`;
 
             document.getElementById('ovUrlText').textContent = d.url;
-            document.getElementById('ovUrlIndexBadge').textContent = d.overview.indexable ? '✓ Indexable' : '✕ Noindex';
-            document.getElementById('ovUrlIndexBadge').className = d.overview.indexable
-                ? 'bg-emerald-50 text-emerald-600 text-xs px-2 py-0.5 rounded-full font-semibold'
-                : 'bg-rose-50 text-rose-600 text-xs px-2 py-0.5 rounded-full font-semibold';
+            const rtxt = d.overview.robotsTxt || { status: 'Allowed' };
+            const isIdx = d.overview.indexable;
+            const ovUrlIndexBadge = document.getElementById('ovUrlIndexBadge');
+            if (ovUrlIndexBadge) {
+                ovUrlIndexBadge.textContent = isIdx 
+                    ? '✓ Indexable' 
+                    : (rtxt.status === 'Blocked' ? '✕ Blocked by Robots.txt' : '✕ Non-Indexable');
+                ovUrlIndexBadge.className = isIdx
+                    ? 'bg-emerald-50 text-emerald-600 text-xs px-2.5 py-0.5 rounded-full font-semibold'
+                    : 'bg-rose-50 text-rose-600 text-xs px-2.5 py-0.5 rounded-full font-semibold';
+                ovUrlIndexBadge.title = d.overview.indexableReason || '';
+            }
 
             document.getElementById('ovCanonicalText').textContent = d.overview.canonical || 'No canonical tag found';
             document.getElementById('ovCanonicalBadge').textContent = `✓ ${d.overview.canonicalStatus}`;
 
-            document.getElementById('ovRobotsText').textContent = d.overview.robotsMeta;
+            // Robots Meta Tag display
+            const ovRobotsEl = document.getElementById('ovRobotsText');
+            if (ovRobotsEl) {
+                if (d.overview.robotsMeta) {
+                    ovRobotsEl.textContent = d.overview.robotsMeta;
+                    ovRobotsEl.className = d.overview.robotsMeta.toLowerCase().includes('noindex') 
+                        ? 'text-xs font-mono font-bold text-rose-600' 
+                        : 'text-xs font-mono font-semibold text-slate-800';
+                } else {
+                    ovRobotsEl.textContent = d.overview.robotsMetaDisplay || 'Not specified in HTML (Defaults to Index)';
+                    ovRobotsEl.className = rtxt.status === 'Blocked' 
+                        ? 'text-xs font-mono text-amber-600 italic font-medium' 
+                        : 'text-xs font-mono text-slate-500 italic';
+                }
+            }
+
             document.getElementById('ovXRobotsText').textContent = d.overview.xRobotsTag;
 
             // Robots.txt crawl status
-            const rtxt = d.overview.robotsTxt || { status: 'Allowed' };
             const rtxtBadge = document.getElementById('ovRobotsTxtBadge');
             const rtxtRule = document.getElementById('ovRobotsTxtRule');
             if (rtxtBadge && rtxtRule) {
@@ -2373,8 +2414,89 @@
                 }
             }
 
-            document.getElementById('ovKeywordsText').textContent = d.overview.keywords || 'None specified';
-            document.getElementById('ovWordCountText').textContent = d.overview.wordCount.toLocaleString();
+            // Keywords Display
+            const ovKeywordsEl = document.getElementById('ovKeywordsText');
+            if (ovKeywordsEl) {
+                if (d.overview.keywords) {
+                    ovKeywordsEl.textContent = d.overview.keywords;
+                    ovKeywordsEl.className = 'text-xs text-slate-800 font-medium';
+                } else {
+                    ovKeywordsEl.textContent = 'None specified';
+                    ovKeywordsEl.className = 'text-xs text-slate-400 italic';
+                }
+            }
+
+            // Word Count Display
+            const ovWordEl = document.getElementById('ovWordCountText');
+            if (ovWordEl) {
+                if (d.rendering?.isSpa) {
+                    ovWordEl.innerHTML = `<span class="text-amber-700 font-bold">${d.overview.wordCount.toLocaleString()} words</span> <span class="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full ml-1 font-mono">Static Shell (SPA ⚡)</span>`;
+                } else {
+                    ovWordEl.textContent = `${d.overview.wordCount.toLocaleString()} words`;
+                }
+            }
+
+            // Populate SPA & Dynamic Hydration Intelligence Card
+            const spaCard = document.getElementById('ovSpaIntelligenceCard');
+            if (spaCard) {
+                if (d.rendering?.isSpa) {
+                    spaCard.classList.remove('hidden');
+                    const fwBadge = document.getElementById('ovSpaFrameworkBadge');
+                    if (fwBadge) fwBadge.textContent = d.rendering.framework || 'SPA Detected';
+                    const noticeEl = document.getElementById('ovSpaNoticeText');
+                    if (noticeEl) noticeEl.textContent = d.rendering.hydrationNotice || '';
+
+                    const detailsCont = document.getElementById('ovSpaContextDetails');
+                    if (detailsCont) {
+                        detailsCont.innerHTML = '';
+                        const ctx = d.rendering.extractedContext || {};
+
+                        if (ctx.breadcrumbs && Array.isArray(ctx.breadcrumbs) && ctx.breadcrumbs.length > 0) {
+                            const bDiv = document.createElement('div');
+                            bDiv.className = 'col-span-full bg-white/80 p-2.5 rounded-lg border border-amber-200/70 shadow-xs';
+                            bDiv.innerHTML = `
+                                <span class="text-[10px] font-bold text-slate-500 uppercase block mb-0.5"><i class="fas fa-sitemap mr-1 text-amber-600"></i> Extracted SPA Breadcrumbs & Location Context</span>
+                                <span class="font-mono text-xs font-bold text-slate-900">${escapeHtml(ctx.breadcrumbs.join(' › '))}</span>
+                            `;
+                            detailsCont.appendChild(bDiv);
+                        }
+
+                        if (ctx.cityId || ctx.checkIn || ctx.selectedPropertyId) {
+                            const pDiv = document.createElement('div');
+                            pDiv.className = 'bg-white/80 p-2.5 rounded-lg border border-amber-200/70 shadow-xs space-y-1';
+                            pDiv.innerHTML = `
+                                <span class="text-[10px] font-bold text-slate-500 uppercase block mb-0.5"><i class="fas fa-sliders mr-1 text-amber-600"></i> Search Criteria</span>
+                                <div class="space-y-0.5 text-[11px] font-mono text-slate-700">
+                                    ${ctx.cityId ? `<div>City ID: <strong class="text-slate-900">${ctx.cityId}</strong></div>` : ''}
+                                    ${ctx.checkIn ? `<div>Stay: <strong class="text-slate-900">${ctx.checkIn} to ${ctx.checkOut}</strong></div>` : ''}
+                                    ${ctx.adults ? `<div>Guests: <strong class="text-slate-900">${ctx.adults} Adults</strong></div>` : ''}
+                                    ${ctx.selectedPropertyId ? `<div>Property ID: <strong class="text-slate-900">${ctx.selectedPropertyId}</strong></div>` : ''}
+                                </div>
+                            `;
+                            detailsCont.appendChild(pDiv);
+                        }
+
+                        if (d.rendering.isFacetedSearch) {
+                            const fDiv = document.createElement('div');
+                            fDiv.className = 'bg-white/80 p-2.5 rounded-lg border border-amber-200/70 shadow-xs flex flex-col justify-between';
+                            fDiv.innerHTML = `
+                                <div>
+                                    <span class="text-[10px] font-bold text-amber-900 uppercase block mb-0.5"><i class="fas fa-shield-halved mr-1 text-amber-600"></i> Faceted Search Policy</span>
+                                    <p class="text-[11px] text-slate-600 leading-relaxed">
+                                        Internal search query URL. Major engines & robots.txt disallow crawling search results to eliminate thin duplicate indexing.
+                                    </p>
+                                </div>
+                                <div class="mt-1.5 pt-1.5 border-t border-amber-100 font-mono text-[10px] text-rose-700 font-bold">
+                                    Indexability: ${escapeHtml(d.overview.indexableReason)}
+                                </div>
+                            `;
+                            detailsCont.appendChild(fDiv);
+                        }
+                    }
+                } else {
+                    spaCard.classList.add('hidden');
+                }
+            }
 
             // Google SERP Snippet Simulator
             renderSerpPreview(d);
