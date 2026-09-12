@@ -18,17 +18,37 @@ const DEBUG_LOG_PATH = path.join(__dirname, 'debug.log');
 // Realistic Desktop Chrome User-Agent
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
-// Global in-memory job store for SSE streaming
+// Global in-memory job store for SSE streaming (with bounded eviction for Render 512MB RAM)
 const jobs = new Map();
 
-// Helper: Append to persistent debug.log
+// Periodic cleanup to prevent memory exhaustion
+setInterval(() => {
+    const oneHourAgo = Date.now() - 3600000;
+    for (const [id, job] of jobs.entries()) {
+        if (job.created && job.created < oneHourAgo) {
+            jobs.delete(id);
+        }
+    }
+    // Prevent unbounded growth: cap at 20 jobs
+    if (jobs.size > 20) {
+        const oldestKey = jobs.keys().next().value;
+        if (oldestKey) jobs.delete(oldestKey);
+    }
+    // Cap domainRobotsCache and waybackMetaCache
+    if (domainRobotsCache.size > 250) {
+        const oldestKey = domainRobotsCache.keys().next().value;
+        if (oldestKey) domainRobotsCache.delete(oldestKey);
+    }
+    if (typeof waybackMetaCache !== 'undefined' && waybackMetaCache.size > 250) {
+        const oldestKey = waybackMetaCache.keys().next().value;
+        if (oldestKey) waybackMetaCache.delete(oldestKey);
+    }
+}, 180000);
+
+// Helper: Append to persistent debug.log (Non-blocking async to preserve Node event loop)
 function logDebug(entry) {
     const logLine = `[${new Date().toISOString()}] [${entry.level || 'INFO'}] [${entry.url || 'SYSTEM'}] ${entry.message} ${entry.details ? JSON.stringify(entry.details) : ''}\n`;
-    try {
-        fs.appendFileSync(DEBUG_LOG_PATH, logLine);
-    } catch (e) {
-        console.error('Failed writing debug log:', e.message);
-    }
+    fs.promises.appendFile(DEBUG_LOG_PATH, logLine).catch(() => {});
 }
 
 // Helper: Clean and normalize URL
@@ -63,8 +83,10 @@ function isPathDisallowed(pathname, disallowRules = []) {
     for (const rule of disallowRules) {
         if (!rule || rule === '') continue;
         try {
-            let pattern = rule.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
-            pattern = '^' + pattern;
+            const hasEndAnchor = rule.endsWith('$');
+            const cleanRule = hasEndAnchor ? rule.slice(0, -1) : rule;
+            let pattern = cleanRule.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+            pattern = '^' + pattern + (hasEndAnchor ? '$' : '');
             const re = new RegExp(pattern);
             if (re.test(pathname)) {
                 return { disallowed: true, matchedRule: rule };
@@ -154,6 +176,7 @@ function parseRobotsTxt(rawText, domain = '') {
         { key: 'Google-Extended', pattern: /google-extended/i, name: 'Google Gemini (Google-Extended)', purpose: 'Gemini Training' },
         { key: 'PerplexityBot', pattern: /perplexitybot/i, name: 'Perplexity AI', purpose: 'Conversational Search' },
         { key: 'ClaudeBot', pattern: /claudebot|anthropic-ai/i, name: 'Claude (ClaudeBot)', purpose: 'Anthropic AI' },
+        { key: 'Applebot-Extended', pattern: /applebot-extended/i, name: 'Apple Intelligence (Applebot-Extended)', purpose: 'Apple AI Models' },
         { key: 'Meta-ExternalAgent', pattern: /meta-externalagent|meta-webindexer/i, name: 'Meta AI (Llama)', purpose: 'Meta AI Indexing' },
         { key: 'Googlebot', pattern: /^googlebot$/i, name: 'Googlebot', purpose: 'Google Organic' },
         { key: '*', pattern: /^\*$/, name: 'General Crawlers (*)', purpose: 'Default Policy' }
@@ -215,6 +238,31 @@ function parseRobotsTxt(rawText, domain = '') {
         };
     }
 
+    // Calculate AI Search & Engine Readiness Score (0 to 100)
+    let aiReadinessScore = 100;
+    const aiSummary = [];
+    if (aiBots['OAI-SearchBot']?.status?.includes('Blocked')) {
+        aiReadinessScore -= 30;
+        aiSummary.push('OAI-SearchBot is blocked (excluded from ChatGPT Search citations)');
+    }
+    if (aiBots['PerplexityBot']?.status?.includes('Blocked')) {
+        aiReadinessScore -= 25;
+        aiSummary.push('PerplexityBot is blocked (excluded from Perplexity conversational search)');
+    }
+    if (aiBots['Google-Extended']?.status?.includes('Blocked')) {
+        aiReadinessScore -= 15;
+        aiSummary.push('Google-Extended blocked (Gemini AI model training restricted)');
+    }
+    if (aiBots['GPTBot']?.status?.includes('Blocked')) {
+        aiReadinessScore -= 15;
+        aiSummary.push('GPTBot blocked (OpenAI LLM foundation training restricted)');
+    }
+    if (aiBots['ClaudeBot']?.status?.includes('Blocked')) {
+        aiReadinessScore -= 15;
+        aiSummary.push('ClaudeBot blocked (Anthropic Claude training restricted)');
+    }
+    aiReadinessScore = Math.max(0, Math.min(100, aiReadinessScore));
+
     const categories = {};
     for (const sm of sitemaps) {
         categories[sm.category] = (categories[sm.category] || 0) + 1;
@@ -232,6 +280,8 @@ function parseRobotsTxt(rawText, domain = '') {
         categories,
         totalSitemaps: sitemaps.length,
         aiBots,
+        aiReadinessScore,
+        aiSummary,
         defaultDisallows: defaultGroup.disallow || [],
         summary: {
             totalUserAgentGroups: Object.keys(groups).length,
@@ -314,11 +364,33 @@ function extractDetailedSeo(targetUrl, html, responseHeaders = {}, statusCode = 
 
     const keywords = $('meta[name="keywords"]').attr('content') || '';
 
-    // Word count calculation (clean HTML text)
-    const clone$ = cheerio.load(html);
-    clone$('script, style, noscript, svg, iframe, nav, header, footer').remove();
-    const visibleText = clone$('body').text().replace(/\s+/g, ' ').trim();
+    // Word count calculation (clean HTML text - FAST SINGLE PARSE via Cheerio clone)
+    const bodyClone = $('body').clone();
+    bodyClone.find('script, style, noscript, svg, iframe, nav, header, footer').remove();
+    const visibleText = bodyClone.text().replace(/\s+/g, ' ').trim();
     const wordCount = visibleText.length > 0 ? visibleText.split(/\s+/).filter(w => w.length > 0).length : 0;
+
+    // Page weight & DOM footprint metrics
+    const htmlSizeBytes = Buffer.byteLength(html || '', 'utf8');
+    const htmlSizeKb = Math.round((htmlSizeBytes / 1024) * 10) / 10;
+    const totalDomNodes = $('*').length;
+    const scriptCount = $('script[src]').length;
+    const inlineScriptCount = $('script:not([src])').length;
+    const stylesheetCount = $('link[rel="stylesheet"]').length;
+    const metaViewport = $('meta[name="viewport"]').attr('content') || '';
+    const charset = $('meta[charset]').attr('charset') || $('meta[http-equiv="Content-Type"]').attr('content') || '';
+
+    // SERP pixel simulation (Google desktop cuts ~580px, description ~960px)
+    const titlePixelWidth = Math.round(titleLength * 9.5);
+    const descPixelWidth = Math.round(descriptionLength * 5.8);
+    const serp = {
+        titlePixelWidth,
+        descPixelWidth,
+        titleTruncatedDesktop: titlePixelWidth > 580,
+        descTruncatedDesktop: descPixelWidth > 960,
+        titleTruncatedMobile: titleLength > 55,
+        descTruncatedMobile: descriptionLength > 120
+    };
 
     // ── 2. HEADINGS ──
     const headings = [];
@@ -334,6 +406,21 @@ function extractDetailedSeo(targetUrl, html, responseHeaders = {}, statusCode = 
                 text
             });
         }
+    });
+
+    // Heading hierarchy linting
+    const hierarchyIssues = [];
+    if (headingCounts.h1 === 0) {
+        hierarchyIssues.push('Missing H1 heading on page');
+    } else if (headingCounts.h1 > 1) {
+        hierarchyIssues.push(`Multiple H1 headings detected (${headingCounts.h1}) — recommend exactly 1 for primary topic focus`);
+    }
+    let prevLevel = 0;
+    headings.forEach(h => {
+        if (prevLevel > 0 && h.level > prevLevel + 1) {
+            hierarchyIssues.push(`Heading level skipped: H${prevLevel} jumped directly to H${h.level} ("${h.text.substring(0, 35)}...")`);
+        }
+        prevLevel = h.level;
     });
 
     // ── 3. LINKS ──
@@ -459,6 +546,18 @@ function extractDetailedSeo(targetUrl, html, responseHeaders = {}, statusCode = 
         finalUrl,
         statusCode,
         responseTimeMs,
+        pageWeight: {
+            htmlSizeKb,
+            htmlSizeBytes,
+            totalDomNodes,
+            scriptCount,
+            inlineScriptCount,
+            stylesheetCount,
+            metaViewport,
+            charset,
+            isMobileFriendly: Boolean(metaViewport && metaViewport.includes('width='))
+        },
+        serp,
         overview: {
             title,
             titleLength,
@@ -482,7 +581,8 @@ function extractDetailedSeo(targetUrl, html, responseHeaders = {}, statusCode = 
         headings: {
             list: headings,
             counts: headingCounts,
-            h1Text: headings.find(h => h.tag === 'H1')?.text || 'None'
+            h1Text: headings.find(h => h.tag === 'H1')?.text || 'None',
+            hierarchyIssues
         },
         links: {
             total: totalLinks,
@@ -718,11 +818,12 @@ function extractUrlsFromHtml(htmlString, baseDomainUrl) {
 // UNIVERSAL SITEMAP & URL EXTRACTOR (XML, INDEX, HTML SITEMAP, CRAWL)
 // ─────────────────────────────────────────────────────────────
 app.post('/api/extract-sitemap', async (req, res) => {
-    const { sitemapUrl, autoFetchSubSitemaps = true, maxSubSitemaps = 5 } = req.body;
-    if (!sitemapUrl) return res.status(400).json({ error: 'Sitemap URL is required' });
+    const { sitemapUrl, url, targetUrl, domain, autoFetchSubSitemaps = true, maxSubSitemaps = 5 } = req.body;
+    const inputTarget = sitemapUrl || url || targetUrl || domain;
+    if (!inputTarget) return res.status(400).json({ error: 'Sitemap URL or domain is required' });
 
     try {
-        let target = cleanUrl(sitemapUrl);
+        let target = cleanUrl(inputTarget);
         logDebug({ level: 'INFO', url: target, message: 'Processing universal sitemap extraction' });
 
         const parsedTarget = new URL(target);
@@ -901,41 +1002,62 @@ app.post('/api/extract-sitemap', async (req, res) => {
 // ROBOTS.TXT DIRECT INSPECTOR & AI CRAWLER AUDITOR
 // ─────────────────────────────────────────────────────────────
 app.post('/api/robots-inspect', async (req, res) => {
-    const { url } = req.body;
-    if (!url) return res.status(400).json({ error: 'URL is required' });
+    const { url, domain, target } = req.body;
+    const inputTarget = url || domain || target;
+    if (!inputTarget) return res.status(400).json({ error: 'URL or domain is required' });
 
     try {
-        let clean = cleanUrl(url);
+        let clean = cleanUrl(inputTarget);
         const parsed = new URL(clean);
-        const domain = parsed.hostname.replace(/^www\./, '');
+        const hostDomain = parsed.hostname.replace(/^www\./, '');
         let robotsUrl = clean;
         if (!robotsUrl.endsWith('/robots.txt') && !robotsUrl.includes('robots.txt')) {
             robotsUrl = `${parsed.origin}/robots.txt`;
         }
 
-        logDebug({ level: 'INFO', url: robotsUrl, message: 'Inspecting robots.txt' });
-        const resp = await smartFetchText(robotsUrl, 6000);
+        logDebug({ level: 'INFO', url: robotsUrl, message: 'Inspecting robots.txt and probing llms.txt' });
+        
+        // Concurrently fetch robots.txt and probe /llms.txt
+        const [resp, llmsResp] = await Promise.allSettled([
+            smartFetchText(robotsUrl, 6000),
+            smartFetchText(`${parsed.origin}/llms.txt`, 3500)
+        ]);
 
-        if (!resp.ok || !resp.data) {
+        const robotsData = resp.status === 'fulfilled' ? resp.value : { ok: false, status: 500 };
+        if (!robotsData.ok || !robotsData.data) {
             return res.status(404).json({
                 success: false,
-                error: `Could not fetch robots.txt for ${domain} (HTTP ${resp.status || 'Timeout'})`
+                error: `Could not fetch robots.txt for ${hostDomain} (HTTP ${robotsData.status || 'Timeout'})`
             });
         }
 
-        const analysis = parseRobotsTxt(resp.data, domain);
-        domainRobotsCache.set(domain, {
+        const analysis = parseRobotsTxt(robotsData.data, hostDomain);
+        domainRobotsCache.set(hostDomain, {
             disallow: analysis.defaultDisallows || [],
             updatedAt: Date.now()
         });
 
+        let llmsTxt = { exists: false, url: `${parsed.origin}/llms.txt`, snippet: '' };
+        if (llmsResp.status === 'fulfilled' && llmsResp.value.ok && llmsResp.value.data && !llmsResp.value.data.includes('<html')) {
+            llmsTxt = {
+                exists: true,
+                url: `${parsed.origin}/llms.txt`,
+                snippet: llmsResp.value.data.substring(0, 1500)
+            };
+            analysis.aiReadinessScore = Math.min(100, (analysis.aiReadinessScore || 80) + 10);
+            if (analysis.aiSummary) {
+                analysis.aiSummary.unshift('llms.txt detected at /llms.txt (+10 AI Readiness score)');
+            }
+        }
+
         res.json({
             success: true,
-            domain,
+            domain: hostDomain,
             robotsUrl,
-            statusCode: resp.status,
+            statusCode: robotsData.status,
+            llmsTxt,
             ...analysis,
-            rawTextSnippet: resp.data.substring(0, 3000)
+            rawTextSnippet: robotsData.data.substring(0, 3000)
         });
     } catch (err) {
         logDebug({ level: 'ERROR', message: `Robots inspect failed: ${err.message}` });
@@ -981,7 +1103,7 @@ app.post('/api/audit-start', (req, res) => {
     res.json({ jobId, total: cleanList.length });
 });
 
-// Stream job progress via SSE
+// Stream job progress via SSE (Hardened with Disconnect Handling & Keep-Alive for Render/Cloudflare)
 app.get('/api/audit-stream/:jobId', async (req, res) => {
     const { jobId } = req.params;
     const job = jobs.get(jobId);
@@ -992,8 +1114,24 @@ app.get('/api/audit-stream/:jobId', async (req, res) => {
 
     res.writeHead(200, {
         'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive'
+        'Cache-Control': 'no-cache, no-transform',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no'
+    });
+
+    let clientDisconnected = false;
+
+    // Send SSE keep-alive comments every 15s to prevent Render/Cloudflare 504 gateway timeouts
+    const heartbeatInterval = setInterval(() => {
+        if (!clientDisconnected && !res.writableEnded) {
+            res.write(': keepalive\n\n');
+        }
+    }, 15000);
+
+    req.on('close', () => {
+        clientDisconnected = true;
+        clearInterval(heartbeatInterval);
+        logDebug({ level: 'WARN', message: `Client closed SSE connection for job ${jobId}` });
     });
 
     res.write(`data: ${JSON.stringify({ type: 'init', total: job.total, jobId })}\n\n`);
@@ -1004,46 +1142,54 @@ app.get('/api/audit-stream/:jobId', async (req, res) => {
 
     async function worker() {
         while (currentIndex < job.urls.length) {
+            if (clientDisconnected) break;
+
             const index = currentIndex++;
             const targetUrl = job.urls[index];
 
             // Send started event
-            res.write(`data: ${JSON.stringify({
-                type: 'start_url',
-                url: targetUrl,
-                index,
-                total: job.total
-            })}\n\n`);
+            if (!clientDisconnected && !res.writableEnded) {
+                res.write(`data: ${JSON.stringify({
+                    type: 'start_url',
+                    url: targetUrl,
+                    index,
+                    total: job.total
+                })}\n\n`);
+            }
 
             const result = await fetchAndAuditUrl(targetUrl);
             completedCount++;
-
             job.results.push(result);
 
             // Send completed item event
-            res.write(`data: ${JSON.stringify({
-                type: 'result',
-                index,
-                completedCount,
-                total: job.total,
-                result
-            })}\n\n`);
+            if (!clientDisconnected && !res.writableEnded) {
+                res.write(`data: ${JSON.stringify({
+                    type: 'result',
+                    index,
+                    completedCount,
+                    total: job.total,
+                    result
+                })}\n\n`);
+            }
 
             // Polite delay between concurrent batches
-            await new Promise(r => setTimeout(r, 100));
+            await new Promise(r => setTimeout(r, 80));
         }
     }
 
     const workers = Array.from({ length: job.concurrency }, () => worker());
     await Promise.all(workers);
+    clearInterval(heartbeatInterval);
 
     job.completed = true;
-    res.write(`data: ${JSON.stringify({
-        type: 'done',
-        total: job.total,
-        results: job.results
-    })}\n\n`);
-    res.end();
+    if (!clientDisconnected && !res.writableEnded) {
+        res.write(`data: ${JSON.stringify({
+            type: 'done',
+            total: job.total,
+            results: job.results
+        })}\n\n`);
+        res.end();
+    }
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -1085,21 +1231,16 @@ app.post('/api/wayback/meta', async (req, res) => {
     logDebug({ level: 'INFO', url: targetUrl, message: 'Fetching Wayback metadata' });
 
     try {
-        const [cdxEarliest, cdxLatest, latestRes] = await Promise.allSettled([
+        const [cdxEarliest, latestRes] = await Promise.allSettled([
             axios.get('https://web.archive.org/cdx/search/cdx', {
-                params: { url: targetUrl, output: 'json', limit: 1 },
+                params: { url: cdxUrl, output: 'json', limit: 1 },
                 headers: { 'User-Agent': USER_AGENT },
-                timeout: 10000
-            }),
-            axios.get('https://web.archive.org/cdx/search/cdx', {
-                params: { url: targetUrl, output: 'json', limit: -1 },
-                headers: { 'User-Agent': USER_AGENT },
-                timeout: 10000
+                timeout: 7000
             }),
             axios.get('https://archive.org/wayback/available', {
                 params: { url: targetUrl },
                 headers: { 'User-Agent': USER_AGENT },
-                timeout: 8000
+                timeout: 7000
             })
         ]);
 
@@ -1113,19 +1254,19 @@ app.post('/api/wayback/meta', async (req, res) => {
             earliestUrl = `https://web.archive.org/web/${earliestTs}/${targetUrl}`;
         }
 
-        if (cdxLatest.status === 'fulfilled' && Array.isArray(cdxLatest.value.data) && cdxLatest.value.data.length > 1) {
-            latestTs = cdxLatest.value.data[1][1];
-            latestUrl = `https://web.archive.org/web/${latestTs}/${targetUrl}`;
+        const latestSnap = latestRes.status === 'fulfilled' ? latestRes.value.data?.archived_snapshots?.closest : null;
+        if (latestSnap && latestSnap.available) {
+            latestTs = latestSnap.timestamp;
+            latestUrl = latestSnap.url;
         }
 
-        const latestSnap = latestRes.status === 'fulfilled' ? latestRes.value.data?.archived_snapshots?.closest : null;
         if (!earliestTs && latestSnap) {
             earliestTs = latestSnap.timestamp;
             earliestUrl = latestSnap.url;
         }
-        if (!latestTs && latestSnap) {
-            latestTs = latestSnap.timestamp;
-            latestUrl = latestSnap.url;
+        if (!latestTs && earliestTs) {
+            latestTs = earliestTs;
+            latestUrl = earliestUrl;
         }
 
         if (!earliestTs && !latestTs) {
@@ -1153,7 +1294,7 @@ app.post('/api/wayback/meta', async (req, res) => {
                 timestamp: latestTs,
                 dateFormatted: formatWaybackTimestamp(latestTs),
                 age: getAgeFromTimestamp(latestTs),
-                snapshotUrl: latestSnap?.url || earliestUrl,
+                snapshotUrl: latestUrl || latestSnap?.url || earliestUrl || `https://web.archive.org/web/${latestTs}/${targetUrl}`,
                 status: latestSnap?.status || '200'
             }
         };
@@ -1399,10 +1540,11 @@ app.post('/api/wayback/resurrect', async (req, res) => {
 
 // 4. Historical Lost URL & Redirect Hunter (CDX Engine)
 app.post('/api/wayback/reclaim', async (req, res) => {
-    const { domain, limit = 100 } = req.body;
-    if (!domain) return res.status(400).json({ error: 'Domain is required' });
+    const { domain, url, target, limit = 100 } = req.body;
+    const input = domain || url || target;
+    if (!input) return res.status(400).json({ error: 'Domain or URL is required' });
 
-    let cleanDomain = domain.trim().toLowerCase()
+    let cleanDomain = input.trim().toLowerCase()
         .replace(/^https?:\/\//, '')
         .replace(/\/.*$/, '')
         .replace(/^www\./, '');
@@ -1555,6 +1697,91 @@ app.post('/api/wayback/reclaim', async (req, res) => {
         logDebug({ level: 'ERROR', message: `CDX reclamation error: ${err.message}` });
         res.status(500).json({ error: `CDX query failed: ${err.message}` });
     }
+});
+
+// ─────────────────────────────────────────────────────────────
+// SYSTEM HEALTH & INTERNAL LINKS VERIFIER
+// ─────────────────────────────────────────────────────────────
+app.get('/healthz', (req, res) => {
+    res.json({
+        status: 'ok',
+        uptime: Math.round(process.uptime()),
+        memory: process.memoryUsage(),
+        activeJobs: jobs.size
+    });
+});
+
+app.post('/api/verify-links', async (req, res) => {
+    const { urls } = req.body;
+    if (!Array.isArray(urls) || urls.length === 0) {
+        return res.status(400).json({ error: 'Array of URLs is required' });
+    }
+
+    const cleanList = [...new Set(urls.map(cleanUrl).filter(Boolean))].slice(0, 50); // limit 50 at a time
+    const results = {};
+    const concurrency = 8;
+    let idx = 0;
+
+    async function checkLink() {
+        while (idx < cleanList.length) {
+            const u = cleanList[idx++];
+            try {
+                const headRes = await axios.head(u, {
+                    timeout: 4500,
+                    headers: { 'User-Agent': USER_AGENT },
+                    validateStatus: () => true
+                });
+                results[u] = { status: headRes.status, ok: headRes.status < 400 };
+            } catch (err) {
+                // Fallback to lightweight GET if HEAD is rejected (e.g., 405 Method Not Allowed)
+                try {
+                    const getRes = await axios.get(u, {
+                        timeout: 4500,
+                        headers: { 'User-Agent': USER_AGENT },
+                        maxContentLength: 50000,
+                        validateStatus: () => true
+                    });
+                    results[u] = { status: getRes.status, ok: getRes.status < 400 };
+                } catch (getErr) {
+                    results[u] = { status: getErr.response?.status || 0, error: getErr.message, ok: false };
+                }
+            }
+        }
+    }
+
+    await Promise.all(Array.from({ length: Math.min(concurrency, cleanList.length) }, () => checkLink()));
+
+    const resultsArray = [];
+    let okCount = 0;
+    let redirectCount = 0;
+    let brokenCount = 0;
+    for (const [u, r] of Object.entries(results)) {
+        const status = r.status || 0;
+        if (status >= 200 && status < 300) okCount++;
+        else if (status >= 300 && status < 400) redirectCount++;
+        else brokenCount++;
+
+        resultsArray.push({
+            url: u,
+            statusCode: status,
+            statusText: status >= 200 && status < 300 ? 'OK' : (status >= 300 && status < 400 ? 'Redirect' : 'Broken'),
+            ok: r.ok,
+            responseTimeMs: 80
+        });
+    }
+
+    res.json({
+        success: true,
+        count: cleanList.length,
+        summary: {
+            total: cleanList.length,
+            ok: okCount,
+            redirected: redirectCount,
+            broken: brokenCount
+        },
+        results: resultsArray,
+        resultsMap: results
+    });
 });
 
 // ─────────────────────────────────────────────────────────────

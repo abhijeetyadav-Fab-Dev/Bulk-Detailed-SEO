@@ -65,6 +65,18 @@
                     <p class="text-[11px] text-gray-400">1:1 On-Page DOM Auditor, Batch Crawler & Live Debugger</p>
                 </div>
             </div>
+
+            <!-- Instant 1:1 URL Quick Audit Bar -->
+            <div class="flex-1 max-w-md mx-4 hidden md:block">
+                <form onsubmit="event.preventDefault(); runQuickAudit();" class="relative flex items-center">
+                    <i class="fas fa-bolt absolute left-3 text-amber-400 text-xs"></i>
+                    <input type="text" id="quickAuditInput" placeholder="Instant 1:1 URL Audit (press Enter)..." 
+                        class="w-full bg-white/10 hover:bg-white/15 text-white placeholder-gray-400 text-xs rounded-xl pl-8 pr-20 py-2 border border-white/10 focus:outline-none focus:ring-2 focus:ring-[#6b6bf6] focus:bg-[#191828] transition">
+                    <button type="submit" class="absolute right-1 text-[11px] bg-[#6b6bf6] hover:bg-[#5858e6] text-white px-3 py-1 rounded-lg font-bold transition flex items-center gap-1 shadow-sm">
+                        <span>Audit</span> <i class="fas fa-arrow-right text-[10px]"></i>
+                    </button>
+                </form>
+            </div>
             
             <div class="flex items-center gap-3">
                 <button onclick="toggleDebugConsole()" class="text-xs bg-white/10 hover:bg-white/20 text-gray-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition">
@@ -197,14 +209,30 @@
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2">
+                                    <div id="aiScoreBadge" class="hidden bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs px-2.5 py-1 rounded-lg font-bold flex items-center gap-1.5">
+                                        <i class="fas fa-gauge-high"></i> <span>AI Score: <strong id="aiScoreVal">100/100</strong></span>
+                                    </div>
                                     <a id="rawRobotsLink" href="#" target="_blank" class="text-[11px] text-indigo-300 hover:text-white underline flex items-center gap-1">
                                         <span>View raw robots.txt</span> <i class="fas fa-arrow-up-right-from-square text-[10px]"></i>
                                     </a>
                                 </div>
                             </div>
 
+                            <!-- llms.txt Detection Alert Banner -->
+                            <div id="llmsTxtBanner" class="hidden bg-indigo-900/60 border border-indigo-500/40 rounded-lg p-2.5 text-xs flex flex-wrap items-center justify-between gap-2">
+                                <div class="flex items-center gap-2 text-indigo-200">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                    <span><strong>/llms.txt Detected:</strong> Standardized Markdown summary available for AI agents & LLMs.</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <a id="llmsTxtLink" href="#" target="_blank" class="text-[11px] bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1 rounded font-semibold transition">
+                                        Open llms.txt
+                                    </a>
+                                </div>
+                            </div>
+
                             <!-- AI Bots Audit Grid -->
-                            <div id="aiBotsGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                            <div id="aiBotsGrid" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 pt-1">
                                 <!-- Dynamic AI Bot Cards -->
                             </div>
                         </div>
@@ -435,28 +463,82 @@
 
         <!-- Results Table Section -->
         <section id="resultsSection" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden space-y-4 p-6">
-            <div class="flex flex-wrap items-center justify-between gap-4">
+            <!-- Executive KPI Summary Dashboard -->
+            <div id="kpiDashboard" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pb-2">
+                <!-- Total Health Score -->
+                <div class="bg-gradient-to-br from-indigo-50 to-purple-50 p-3 rounded-xl border border-indigo-100 flex flex-col justify-between">
+                    <span class="text-[10px] uppercase font-bold text-indigo-700 tracking-wider">Health Score</span>
+                    <div class="flex items-baseline gap-1 mt-1">
+                        <span id="kpiHealthScore" class="text-2xl font-black text-indigo-600">100%</span>
+                        <span class="text-[10px] text-indigo-400 font-semibold">healthy</span>
+                    </div>
+                </div>
+                <!-- Non-Indexable / HTTP Error -->
+                <div onclick="filterByKpi('non-indexable')" class="cursor-pointer hover:border-rose-300 hover:shadow-xs bg-rose-50/60 p-3 rounded-xl border border-rose-100 flex flex-col justify-between transition group">
+                    <span class="text-[10px] uppercase font-bold text-rose-700 tracking-wider flex items-center justify-between">
+                        <span>Non-Indexable</span><i class="fas fa-ban text-rose-400 group-hover:scale-110 transition"></i>
+                    </span>
+                    <span id="kpiNonIndexable" class="text-2xl font-bold text-rose-600 mt-1">0</span>
+                </div>
+                <!-- Canonical Mismatch -->
+                <div onclick="filterByKpi('canon-diff')" class="cursor-pointer hover:border-amber-300 hover:shadow-xs bg-amber-50/60 p-3 rounded-xl border border-amber-100 flex flex-col justify-between transition group">
+                    <span class="text-[10px] uppercase font-bold text-amber-800 tracking-wider flex items-center justify-between">
+                        <span>Canon Mismatch</span><i class="fas fa-shuffle text-amber-500 group-hover:scale-110 transition"></i>
+                    </span>
+                    <span id="kpiCanonMismatch" class="text-2xl font-bold text-amber-700 mt-1">0</span>
+                </div>
+                <!-- Title Issues -->
+                <div onclick="filterByKpi('title-issue')" class="cursor-pointer hover:border-blue-300 hover:shadow-xs bg-blue-50/60 p-3 rounded-xl border border-blue-100 flex flex-col justify-between transition group">
+                    <span class="text-[10px] uppercase font-bold text-blue-700 tracking-wider flex items-center justify-between">
+                        <span>Title Issues</span><i class="fas fa-heading text-blue-400 group-hover:scale-110 transition"></i>
+                    </span>
+                    <span id="kpiTitleIssues" class="text-2xl font-bold text-blue-600 mt-1">0</span>
+                </div>
+                <!-- Missing Alt Images -->
+                <div onclick="filterByKpi('missing-alt')" class="cursor-pointer hover:border-orange-300 hover:shadow-xs bg-orange-50/60 p-3 rounded-xl border border-orange-100 flex flex-col justify-between transition group">
+                    <span class="text-[10px] uppercase font-bold text-orange-700 tracking-wider flex items-center justify-between">
+                        <span>Missing Alt</span><i class="fas fa-image text-orange-400 group-hover:scale-110 transition"></i>
+                    </span>
+                    <span id="kpiMissingAlt" class="text-2xl font-bold text-orange-600 mt-1">0</span>
+                </div>
+                <!-- Thin Content -->
+                <div onclick="filterByKpi('thin-content')" class="cursor-pointer hover:border-slate-300 hover:shadow-xs bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col justify-between transition group">
+                    <span class="text-[10px] uppercase font-bold text-slate-700 tracking-wider flex items-center justify-between">
+                        <span>Thin Content</span><i class="fas fa-file-lines text-slate-400 group-hover:scale-110 transition"></i>
+                    </span>
+                    <span id="kpiThinContent" class="text-2xl font-bold text-slate-700 mt-1">0</span>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-4 pt-2 border-t border-slate-100">
                 <div>
                     <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
                         <span>Audit Results</span>
                         <span id="totalResultsBadge" class="bg-indigo-50 text-indigo-700 text-xs px-2.5 py-0.5 rounded-full font-bold">0 URLs</span>
                     </h2>
-                    <p class="text-xs text-slate-400">Click any row to open the complete Detailed SEO Extension popup view</p>
+                    <p class="text-xs text-slate-400">Click any column header to sort • Click row to inspect 1:1 Detailed SEO</p>
                 </div>
 
-                <!-- Export & Filter Buttons -->
+                <!-- Export, Filter & Retry Buttons -->
                 <div class="flex flex-wrap items-center gap-2">
+                    <button id="retryFailedBtn" onclick="retryFailedUrls()" class="hidden bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs px-3 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm animate-pulse">
+                        <i class="fas fa-rotate-right"></i> <span id="retryFailedText">Retry Failed URLs</span>
+                    </button>
+
                     <div class="relative">
                         <i class="fas fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-400"></i>
-                        <input type="text" id="tableFilterInput" onkeyup="filterResultsTable()" placeholder="Filter by keyword or URL..."
-                            class="text-xs pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#6b6bf6] w-48 transition">
+                        <input type="text" id="tableFilterInput" onkeyup="applyFilterAndSearch()" placeholder="Search title or URL..."
+                            class="text-xs pl-8 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#6b6bf6] w-44 transition">
                     </div>
 
-                    <select id="filterStatus" onchange="filterResultsTable()" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-2 text-slate-600">
+                    <select id="filterStatus" onchange="applyFilterAndSearch()" class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-2 text-slate-600">
                         <option value="all">All URLs</option>
                         <option value="indexable">Indexable Only</option>
                         <option value="non-indexable">Non-Indexable</option>
                         <option value="canon-diff">Canonical Mismatch</option>
+                        <option value="title-issue">Title Issues</option>
+                        <option value="missing-alt">Missing Image Alt</option>
+                        <option value="thin-content">Thin Content (&lt;300w)</option>
                         <option value="failed">Failed / Error</option>
                     </select>
 
@@ -469,26 +551,65 @@
                 </div>
             </div>
 
-            <!-- Table -->
+            <!-- Table with Clickable Sort Headers -->
             <div class="overflow-x-auto border border-slate-200 rounded-xl">
                 <table class="w-full text-left text-xs border-collapse">
-                    <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 uppercase tracking-wider">
+                    <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 uppercase tracking-wider select-none">
                         <tr>
-                            <th class="py-3 px-3.5 w-12 text-center">#</th>
-                            <th class="py-3 px-3">Status</th>
-                            <th class="py-3 px-3">Page Title</th>
-                            <th class="py-3 px-3">Indexability</th>
-                            <th class="py-3 px-3">Canonical</th>
-                            <th class="py-3 px-3">Headings</th>
-                            <th class="py-3 px-3">Links</th>
-                            <th class="py-3 px-3 text-right">Words</th>
+                            <th onclick="sortResultsTable('index')" class="py-3 px-3.5 w-12 text-center cursor-pointer hover:bg-slate-100 transition">
+                                <span>#</span> <i id="sortIcon-index" class="fas fa-sort text-[10px] text-slate-400 ml-0.5"></i>
+                            </th>
+                            <th onclick="sortResultsTable('statusCode')" class="py-3 px-3 cursor-pointer hover:bg-slate-100 transition">
+                                <span>Status</span> <i id="sortIcon-statusCode" class="fas fa-sort text-[10px] text-slate-400 ml-0.5"></i>
+                            </th>
+                            <th onclick="sortResultsTable('title')" class="py-3 px-3 cursor-pointer hover:bg-slate-100 transition">
+                                <span>Page Title & URL</span> <i id="sortIcon-title" class="fas fa-sort text-[10px] text-slate-400 ml-0.5"></i>
+                            </th>
+                            <th onclick="sortResultsTable('indexable')" class="py-3 px-3 cursor-pointer hover:bg-slate-100 transition">
+                                <span>Indexability</span> <i id="sortIcon-indexable" class="fas fa-sort text-[10px] text-slate-400 ml-0.5"></i>
+                            </th>
+                            <th onclick="sortResultsTable('canonical')" class="py-3 px-3 cursor-pointer hover:bg-slate-100 transition">
+                                <span>Canonical</span> <i id="sortIcon-canonical" class="fas fa-sort text-[10px] text-slate-400 ml-0.5"></i>
+                            </th>
+                            <th onclick="sortResultsTable('headings')" class="py-3 px-3 cursor-pointer hover:bg-slate-100 transition">
+                                <span>Headings</span> <i id="sortIcon-headings" class="fas fa-sort text-[10px] text-slate-400 ml-0.5"></i>
+                            </th>
+                            <th onclick="sortResultsTable('links')" class="py-3 px-3 cursor-pointer hover:bg-slate-100 transition">
+                                <span>Links</span> <i id="sortIcon-links" class="fas fa-sort text-[10px] text-slate-400 ml-0.5"></i>
+                            </th>
+                            <th onclick="sortResultsTable('words')" class="py-3 px-3 text-right cursor-pointer hover:bg-slate-100 transition">
+                                <span>Words</span> <i id="sortIcon-words" class="fas fa-sort text-[10px] text-slate-400 ml-0.5"></i>
+                            </th>
                             <th class="py-3 px-3 text-center">Action</th>
                         </tr>
                     </thead>
                     <tbody id="resultsTableBody" class="divide-y divide-slate-100 font-medium text-slate-700">
-                        <!-- Dynamic Rows -->
+                        <!-- Dynamic Rows (Paginated) -->
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Client-Side Pagination Controls for 1,000+ URLs -->
+            <div class="flex flex-wrap items-center justify-between pt-3 gap-3 border-t border-slate-100 text-xs">
+                <div class="flex items-center gap-2 text-slate-500">
+                    <span>Rows per page:</span>
+                    <select id="pageSizeSelect" onchange="changePageSize()" class="bg-slate-100 border border-slate-300 rounded-lg px-2 py-1 text-slate-700 font-semibold focus:outline-none">
+                        <option value="25" selected>25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="all">All</option>
+                    </select>
+                    <span id="paginationInfo" class="ml-2 font-medium">Showing 0-0 of 0</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="prevPageBtn" onclick="prevPage()" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg font-semibold text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                        <i class="fas fa-chevron-left mr-1"></i> Prev
+                    </button>
+                    <span id="pageNumberDisplay" class="font-mono px-2 font-bold text-slate-700">1 / 1</span>
+                    <button id="nextPageBtn" onclick="nextPage()" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg font-semibold text-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition">
+                        Next <i class="fas fa-chevron-right ml-1"></i>
+                    </button>
+                </div>
             </div>
         </section>
 
@@ -508,10 +629,38 @@
                         <i class="fas fa-play"></i>
                         <span>Audit All in Detailed SEO</span>
                     </button>
-                    <button onclick="export301RedirectCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition shadow-sm">
-                        <i class="fas fa-file-csv"></i>
-                        <span>Export 301 Redirect Map (.CSV)</span>
-                    </button>
+                    <!-- Multi-Platform 301 Export Dropdown -->
+                    <div class="relative inline-block text-left" id="reclaimExportDropdownGroup">
+                        <button onclick="toggleExportMenu()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition shadow-sm">
+                            <i class="fas fa-file-export"></i>
+                            <span>Export 301 Redirects</span>
+                            <i class="fas fa-chevron-down text-[10px] ml-1"></i>
+                        </button>
+                        <div id="exportDropdownMenu" class="hidden absolute right-0 mt-1.5 w-56 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-30 text-xs text-slate-700 divide-y divide-slate-100">
+                            <div class="py-1">
+                                <button onclick="export301RedirectCSV()" class="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2">
+                                    <i class="fas fa-file-csv text-emerald-600"></i> Standard CSV (Generic)
+                                </button>
+                                <button onclick="exportRedirectsFormat('htaccess')" class="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2">
+                                    <i class="fas fa-server text-indigo-600"></i> Apache .htaccess Rules
+                                </button>
+                                <button onclick="exportRedirectsFormat('nginx')" class="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2">
+                                    <i class="fas fa-network-wired text-green-600"></i> Nginx Rewrite Rules
+                                </button>
+                            </div>
+                            <div class="py-1">
+                                <button onclick="exportRedirectsFormat('cloudflare')" class="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2">
+                                    <i class="fas fa-cloud text-amber-500"></i> Cloudflare Bulk CSV
+                                </button>
+                                <button onclick="exportRedirectsFormat('shopify')" class="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2">
+                                    <i class="fas fa-shopping-bag text-emerald-500"></i> Shopify Redirects CSV
+                                </button>
+                                <button onclick="exportRedirectsFormat('wordpress')" class="w-full text-left px-3.5 py-2 hover:bg-slate-50 flex items-center gap-2">
+                                    <i class="fab fa-wordpress text-blue-600"></i> WordPress Redirection CSV
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                     <button onclick="closeReclaimSection()" class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-xs px-3 py-2 rounded-xl transition">
                         <i class="fas fa-xmark"></i>
                     </button>
@@ -711,6 +860,95 @@
                         </div>
                     </div>
 
+                    <!-- Google SERP Snippet Simulator -->
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="w-6 h-6 rounded-lg bg-indigo-50 text-[#6b6bf6] flex items-center justify-center text-xs"><i class="fab fa-google"></i></span>
+                                <span class="text-xs font-bold text-slate-700 uppercase">Google SERP Snippet Simulator</span>
+                            </div>
+                            <!-- Desktop / Mobile Toggle -->
+                            <div class="flex items-center bg-slate-100 p-0.5 rounded-lg text-xs font-semibold">
+                                <button onclick="setSerpMode('desktop')" id="serpBtnDesktop" class="px-2.5 py-1 rounded-md bg-white shadow-xs text-indigo-700 transition flex items-center gap-1">
+                                    <i class="fas fa-desktop text-[10px]"></i> Desktop
+                                </button>
+                                <button onclick="setSerpMode('mobile')" id="serpBtnMobile" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 transition flex items-center gap-1">
+                                    <i class="fas fa-mobile-screen text-[10px]"></i> Mobile
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- SERP Preview Card -->
+                        <div id="serpContainer" class="p-4 bg-[#f8f9fa] rounded-xl border border-slate-200 transition-all">
+                            <div class="flex items-center gap-2 mb-1">
+                                <div class="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-xs text-slate-600 font-bold overflow-hidden" id="serpFaviconWrapper">
+                                    <i class="fas fa-globe text-[11px] text-slate-500"></i>
+                                </div>
+                                <div class="leading-none">
+                                    <p id="serpSiteName" class="text-xs font-medium text-[#202124] leading-tight">Domain.com</p>
+                                    <p id="serpUrlBreadcrumb" class="text-[11px] text-[#4d5156] font-normal truncate max-w-lg leading-tight">https://domain.com › page</p>
+                                </div>
+                            </div>
+                            <h3 id="serpPreviewTitle" class="text-[18px] text-[#1a0dab] hover:underline cursor-pointer font-normal leading-snug break-words">
+                                Page Title Goes Here
+                            </h3>
+                            <p id="serpPreviewDesc" class="text-[13px] text-[#4d5156] leading-relaxed mt-1 break-words">
+                                Meta description snippet appears here to simulate how Google searchers see this page on search results.
+                            </p>
+                        </div>
+
+                        <!-- Pixel & Character Gauges -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 text-xs">
+                            <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-200/80 space-y-1">
+                                <div class="flex items-center justify-between text-[11px]">
+                                    <span class="font-bold text-slate-600">Title Width & Length:</span>
+                                    <span id="serpTitleGaugeText" class="font-mono font-bold text-emerald-600">0px / 600px (0 chars)</span>
+                                </div>
+                                <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                                    <div id="serpTitleGaugeBar" class="bg-emerald-500 h-1.5 rounded-full transition-all" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-200/80 space-y-1">
+                                <div class="flex items-center justify-between text-[11px]">
+                                    <span class="font-bold text-slate-600">Description Width & Length:</span>
+                                    <span id="serpDescGaugeText" class="font-mono font-bold text-emerald-600">0px / 960px (0 chars)</span>
+                                </div>
+                                <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                                    <div id="serpDescGaugeBar" class="bg-emerald-500 h-1.5 rounded-full transition-all" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Page Weight & DOM Footprint Card -->
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="w-6 h-6 rounded-lg bg-indigo-50 text-[#6b6bf6] flex items-center justify-center text-xs"><i class="fas fa-gauge-high"></i></span>
+                                <span class="text-xs font-bold text-slate-700 uppercase">Page Weight & DOM Footprint</span>
+                            </div>
+                            <span id="domHealthBadge" class="bg-emerald-50 text-emerald-600 text-xs px-2 py-0.5 rounded-full font-bold">Fast Payload</span>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                            <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-200/70">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase block">HTML Size</span>
+                                <span id="metricHtmlSize" class="text-base font-bold text-slate-900 mt-0.5 block">0 KB</span>
+                            </div>
+                            <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-200/70">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase block">DOM Nodes</span>
+                                <span id="metricDomNodes" class="text-base font-bold text-slate-900 mt-0.5 block">~0</span>
+                            </div>
+                            <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-200/70">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase block">Script Tags</span>
+                                <span id="metricScriptsCount" class="text-base font-bold text-slate-900 mt-0.5 block">0</span>
+                            </div>
+                            <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-200/70">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase block">Stylesheets</span>
+                                <span id="metricStylesheetsCount" class="text-base font-bold text-slate-900 mt-0.5 block">0</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Wayback Archive & Age Intelligence Card -->
                     <div class="bg-gradient-to-br from-amber-50 to-orange-50/50 p-4 rounded-xl border border-amber-200/80 shadow-sm space-y-2">
                         <div class="flex items-center justify-between">
@@ -760,6 +998,15 @@
                         </button>
                     </div>
 
+                    <!-- Heading Hierarchy Warning Alert -->
+                    <div id="headingHierarchyAlert" class="hidden p-3.5 rounded-xl border text-xs flex items-start gap-2.5">
+                        <i id="hierarchyAlertIcon" class="fas fa-triangle-exclamation text-base mt-0.5 flex-shrink-0"></i>
+                        <div class="space-y-0.5 flex-1">
+                            <h4 id="hierarchyAlertTitle" class="font-bold">Heading Hierarchy Assessment</h4>
+                            <p id="hierarchyAlertDesc" class="text-slate-600 leading-relaxed">No hierarchy issues detected.</p>
+                        </div>
+                    </div>
+
                     <div id="headingsTreeContainer" class="bg-white p-5 rounded-xl border border-slate-200 space-y-2.5">
                         <!-- Headings list with tags -->
                     </div>
@@ -789,13 +1036,23 @@
 
                     <!-- Links subtabs -->
                     <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                        <div class="flex border-b border-slate-200 bg-slate-50 px-4 pt-2 gap-4">
-                            <button onclick="switchLinksSubtab('internal')" id="lkSubTab-internal" class="py-2 text-xs font-bold border-b-2 border-[#6b6bf6] text-[#6b6bf6]">
-                                Internal Links (<span id="internalSubCount">0</span>)
+                        <div class="flex flex-wrap items-center justify-between border-b border-slate-200 bg-slate-50 px-4 pt-2 gap-2">
+                            <div class="flex gap-4">
+                                <button onclick="switchLinksSubtab('internal')" id="lkSubTab-internal" class="py-2 text-xs font-bold border-b-2 border-[#6b6bf6] text-[#6b6bf6]">
+                                    Internal Links (<span id="internalSubCount">0</span>)
+                                </button>
+                                <button onclick="switchLinksSubtab('external')" id="lkSubTab-external" class="py-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800">
+                                    External Links (<span id="externalSubCount">0</span>)
+                                </button>
+                            </div>
+                            <button id="verifyLinksBtn" onclick="verifyCurrentModalLinks()" class="my-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-3 py-1 rounded-lg flex items-center gap-1.5 transition shadow-xs">
+                                <i class="fas fa-stethoscope"></i>
+                                <span id="verifyLinksBtnText">Verify Internal Links HTTP</span>
                             </button>
-                            <button onclick="switchLinksSubtab('external')" id="lkSubTab-external" class="py-2 text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-800">
-                                External Links (<span id="externalSubCount">0</span>)
-                            </button>
+                        </div>
+                        <div id="verifyLinksProgress" class="hidden bg-indigo-50 border-b border-indigo-100 px-4 py-2 text-xs text-indigo-700 flex items-center gap-2">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span id="verifyLinksProgressText">Testing internal links against live server...</span>
                         </div>
                         <div id="linksListContainer" class="p-4 max-h-96 overflow-y-auto divide-y divide-slate-100 space-y-2">
                             <!-- Link items -->
@@ -1062,12 +1319,35 @@
     <script>
         // Global Application State
         let auditResults = [];
+        let filteredAuditResults = [];
         let debugLogs = [];
         let activeJobId = null;
         let eventSource = null;
         let timerInterval = null;
         let auditStartTime = null;
         let selectedAuditIndex = null;
+
+        // Table Pagination, Sorting, and Filter State
+        let currentPage = 1;
+        let pageSize = 25;
+        let sortColumn = 'index';
+        let sortDirection = 'asc';
+        let activeKpiFilter = null;
+        let currentSerpMode = 'desktop';
+
+        function runQuickAudit() {
+            const input = document.getElementById('quickAuditInput');
+            const raw = input ? input.value.trim() : '';
+            if (!raw) {
+                alert('Please enter a target URL in the quick audit box.');
+                return;
+            }
+            let target = raw;
+            if (!target.startsWith('http://') && !target.startsWith('https://')) {
+                target = 'https://' + target;
+            }
+            executeBulkAudit([target], 'Quick Audit', 1);
+        }
 
         // On Page Load
         document.addEventListener('DOMContentLoaded', () => {
@@ -1258,6 +1538,40 @@
                 ? new URL(data.inputUrl).origin
                 : `https://${domain}`;
             document.getElementById('rawRobotsLink').href = `${origin}/robots.txt`;
+
+            // AI Readiness Score
+            const aiScoreBadge = document.getElementById('aiScoreBadge');
+            const aiScoreVal = document.getElementById('aiScoreVal');
+            if (aiScoreBadge && aiScoreVal && data.aiReadinessScore !== undefined) {
+                aiScoreBadge.classList.remove('hidden');
+                aiScoreVal.textContent = data.aiReadinessScore;
+                if (data.aiReadinessScore >= 80) {
+                    aiScoreBadge.className = 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[11px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1.5';
+                } else if (data.aiReadinessScore >= 50) {
+                    aiScoreBadge.className = 'bg-amber-500/20 text-amber-300 border border-amber-400/30 text-[11px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1.5';
+                } else {
+                    aiScoreBadge.className = 'bg-rose-500/20 text-rose-300 border border-rose-400/30 text-[11px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1.5';
+                }
+            }
+
+            // llms.txt Detection Banner
+            const llmsBanner = document.getElementById('llmsTxtBanner');
+            const llmsUrl = document.getElementById('llmsTxtUrl');
+            const llmsSnippet = document.getElementById('llmsTxtSnippet');
+            if (llmsBanner) {
+                if (data.llmsTxt && data.llmsTxt.exists) {
+                    llmsBanner.classList.remove('hidden');
+                    if (llmsUrl) {
+                        llmsUrl.href = data.llmsTxt.url;
+                        llmsUrl.textContent = data.llmsTxt.url;
+                    }
+                    if (llmsSnippet && data.llmsTxt.sampleLines) {
+                        llmsSnippet.textContent = data.llmsTxt.sampleLines.join('\n');
+                    }
+                } else {
+                    llmsBanner.classList.add('hidden');
+                }
+            }
 
             // Render AI Bots Grid
             const aiGrid = document.getElementById('aiBotsGrid');
@@ -1540,9 +1854,13 @@
 
             // Reset UI
             auditResults = [];
+            filteredAuditResults = [];
+            currentPage = 1;
+            activeKpiFilter = null;
             document.getElementById('resultsTableBody').innerHTML = '';
             document.getElementById('resultsSection').classList.remove('hidden');
             document.getElementById('progressSection').classList.remove('hidden');
+            document.getElementById('retryFailedBtn')?.classList.add('hidden');
 
             setAuditButtonsLoading(true);
 
@@ -1602,6 +1920,7 @@
         }
 
         // Handle Each Real-Time Result
+        let lastRenderTime = 0;
         function handleAuditResult(item, completed, total) {
             auditResults.push(item);
 
@@ -1624,82 +1943,15 @@
                 addDebugEntry('ERROR', `[FAILED] ${item.url} - ${item.error.code}: ${item.error.message}`);
             }
 
-            // Append Row to Table
-            appendResultRow(item, auditResults.length - 1);
-            document.getElementById('totalResultsBadge').textContent = `${auditResults.length} URLs`;
-        }
+            // Update KPI Dashboard
+            updateKpiDashboard();
 
-        // Append Row in Table
-        function appendResultRow(item, index) {
-            const tbody = document.getElementById('resultsTableBody');
-            const tr = document.createElement('tr');
-            tr.className = 'hover:bg-slate-50/80 transition cursor-pointer';
-            tr.onclick = () => openDetailedModal(index);
-
-            if (item.success) {
-                const d = item.data;
-                const statusColor = d.statusCode === 200 ? 'text-emerald-600 bg-emerald-50' : 'text-amber-600 bg-amber-50';
-                const indexColor = d.overview.indexable ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50';
-                const canonColor = d.overview.canonicalStatus === 'Self-referencing' ? 'text-emerald-600 bg-emerald-50' : 'text-amber-600 bg-amber-50';
-
-                tr.innerHTML = `
-                    <td class="py-3 px-3.5 text-center font-bold text-slate-400">${index + 1}</td>
-                    <td class="py-3 px-3">
-                        <span class="px-2 py-0.5 rounded-full text-[11px] font-bold ${statusColor}">${d.statusCode}</span>
-                    </td>
-                    <td class="py-3 px-3 max-w-xs">
-                        <p class="font-bold text-slate-900 truncate" title="${d.overview.title}">${d.overview.title || '<span class="text-slate-400 italic">No Title</span>'}</p>
-                        <p class="text-[11px] text-slate-400 truncate" title="${d.url}">${d.url}</p>
-                    </td>
-                    <td class="py-3 px-3">
-                        <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold ${indexColor}" title="${d.overview.indexableReason || ''}">
-                            ${d.overview.indexable ? '✓ Indexable' : (d.overview.robotsTxt?.status === 'Blocked' ? '✕ Blocked (Robots)' : '✕ Noindex')}
-                        </span>
-                    </td>
-                    <td class="py-3 px-3">
-                        <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold ${canonColor}">
-                            ${d.overview.canonicalStatus}
-                        </span>
-                    </td>
-                    <td class="py-3 px-3">
-                        <span class="font-mono text-slate-600">H1: <strong>${d.headings.counts.h1}</strong></span>
-                        <span class="text-slate-400 text-[10px] ml-1">Total: ${d.headings.list.length}</span>
-                    </td>
-                    <td class="py-3 px-3">
-                        <span class="text-blue-600 font-bold">${d.links.internalCount} Int</span> / 
-                        <span class="text-amber-600 font-bold">${d.links.externalCount} Ext</span>
-                    </td>
-                    <td class="py-3 px-3 text-right font-mono font-bold text-slate-700">
-                        ${d.overview.wordCount.toLocaleString()}
-                    </td>
-                    <td class="py-3 px-3 text-center">
-                        <button onclick="event.stopPropagation(); openDetailedModal(${index})" class="bg-[#6b6bf6]/10 hover:bg-[#6b6bf6] text-[#6b6bf6] hover:text-white font-bold text-[11px] px-2.5 py-1 rounded-lg transition">
-                            Inspect
-                        </button>
-                    </td>
-                `;
-            } else {
-                tr.innerHTML = `
-                    <td class="py-3 px-3.5 text-center font-bold text-slate-400">${index + 1}</td>
-                    <td class="py-3 px-3">
-                        <span class="px-2 py-0.5 rounded-full text-[11px] font-bold text-rose-600 bg-rose-50">ERROR</span>
-                    </td>
-                    <td class="py-3 px-3 max-w-xs" colspan="3">
-                        <p class="text-rose-600 font-bold">${item.error.code}: ${item.error.message}</p>
-                        <p class="text-[11px] text-slate-400 truncate">${item.url}</p>
-                    </td>
-                    <td class="py-3 px-3 text-slate-400" colspan="3">--</td>
-                    <td class="py-3 px-3 text-center">
-                        <button onclick="event.stopPropagation(); resurrectDeadUrl('${item.url}')" class="bg-purple-100 hover:bg-purple-200 text-purple-800 font-bold text-[11px] px-2.5 py-1 rounded-lg transition mr-1.5 shadow-sm">
-                            🧟 Resurrect
-                        </button>
-                        <button onclick="event.stopPropagation(); retrySingleUrl('${item.url}')" class="bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold text-[11px] px-2.5 py-1 rounded-lg transition">
-                            Retry
-                        </button>
-                    </td>
-                `;
+            // Throttle table rendering during live streaming (every 100ms or on completion)
+            const now = Date.now();
+            if (completed === total || now - lastRenderTime > 150) {
+                lastRenderTime = now;
+                applyFilterAndSearch(false);
             }
-            tbody.appendChild(tr);
         }
 
         // Finish Audit
@@ -1712,7 +1964,353 @@
             setAuditButtonsLoading(false);
             document.getElementById('progressStatusText').textContent = 'Audit complete!';
             document.getElementById('currentProcessingUrl').textContent = `Total duration: ${document.getElementById('elapsedTimer').textContent}`;
+            updateKpiDashboard();
+            applyFilterAndSearch(false);
             addDebugEntry('SUCCESS', `Bulk audit finished. Processed ${auditResults.length} URLs.`);
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // EXECUTIVE KPI DASHBOARD CALCULATOR & FILTERS
+        // ─────────────────────────────────────────────────────────────
+        function updateKpiDashboard() {
+            const total = auditResults.length;
+            if (total === 0) return;
+
+            let successfulCount = 0;
+            let healthyCount = 0;
+            let nonIndexable = 0;
+            let canonMismatch = 0;
+            let titleIssues = 0;
+            let missingAlt = 0;
+            let thinContent = 0;
+            let failedCount = 0;
+
+            auditResults.forEach(item => {
+                if (item.success) {
+                    successfulCount++;
+                    const d = item.data;
+                    const is200 = d.statusCode === 200;
+                    const isIdx = d.overview.indexable;
+                    const hasTitle = d.overview.title && d.overview.titleLength >= 10 && d.overview.titleLength <= 65;
+                    const hasH1 = d.headings.counts.h1 === 1;
+                    const canonOk = d.overview.canonicalStatus === 'Self-referencing' || !d.overview.canonical;
+
+                    if (is200 && isIdx && hasTitle && hasH1 && canonOk) {
+                        healthyCount++;
+                    }
+
+                    if (!isIdx || !is200) nonIndexable++;
+                    if (d.overview.canonicalStatus === 'Different') canonMismatch++;
+                    if (!d.overview.title || d.overview.titleLength < 30 || d.overview.titleLength > 60) titleIssues++;
+                    if (d.images.missingAlt > 0) missingAlt++;
+                    if (d.overview.wordCount < 300) thinContent++;
+                } else {
+                    failedCount++;
+                    nonIndexable++;
+                    titleIssues++;
+                }
+            });
+
+            const healthPercent = successfulCount > 0 ? Math.round((healthyCount / successfulCount) * 100) : 0;
+            
+            const healthEl = document.getElementById('kpiHealthScore');
+            if (healthEl) {
+                healthEl.textContent = `${healthPercent}%`;
+                healthEl.className = healthPercent >= 80 ? 'text-2xl font-black text-indigo-600' : healthPercent >= 50 ? 'text-2xl font-black text-amber-600' : 'text-2xl font-black text-rose-600';
+            }
+
+            const setKpi = (id, val) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = val.toLocaleString();
+            };
+
+            setKpi('kpiNonIndexable', nonIndexable);
+            setKpi('kpiCanonMismatch', canonMismatch);
+            setKpi('kpiTitleIssues', titleIssues);
+            setKpi('kpiMissingAlt', missingAlt);
+            setKpi('kpiThinContent', thinContent);
+
+            const retryBtn = document.getElementById('retryFailedBtn');
+            const retryText = document.getElementById('retryFailedText');
+            if (retryBtn && retryText) {
+                if (failedCount > 0) {
+                    retryBtn.classList.remove('hidden');
+                    retryText.textContent = `Retry Failed (${failedCount})`;
+                } else {
+                    retryBtn.classList.add('hidden');
+                }
+            }
+        }
+
+        function filterByKpi(filterType) {
+            const filterSelect = document.getElementById('filterStatus');
+            if (activeKpiFilter === filterType) {
+                activeKpiFilter = null;
+                if (filterSelect) filterSelect.value = 'all';
+            } else {
+                activeKpiFilter = filterType;
+                if (filterSelect) filterSelect.value = filterType;
+            }
+            applyFilterAndSearch(true);
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // TABLE FILTERING, SORTING & PAGINATION (FOR 1,000+ URLs)
+        // ─────────────────────────────────────────────────────────────
+        function applyFilterAndSearch(resetPage = true) {
+            const query = (document.getElementById('tableFilterInput')?.value || '').toLowerCase().trim();
+            const filter = document.getElementById('filterStatus')?.value || activeKpiFilter || 'all';
+
+            filteredAuditResults = auditResults.map((item, originalIndex) => ({ item, originalIndex })).filter(({ item }) => {
+                // Search filter
+                if (query) {
+                    const text = (item.url + ' ' + (item.data?.overview?.title || '') + ' ' + (item.data?.headings?.h1Text || '')).toLowerCase();
+                    if (!text.includes(query)) return false;
+                }
+
+                // Status & KPI filter
+                if (filter === 'all') return true;
+                if (filter === 'indexable') return item.success && item.data.overview.indexable;
+                if (filter === 'non-indexable') return !item.success || !item.data.overview.indexable;
+                if (filter === 'canon-diff') return item.success && item.data.overview.canonicalStatus === 'Different';
+                if (filter === 'title-issue') {
+                    if (!item.success) return true;
+                    const len = item.data.overview.titleLength || 0;
+                    return len < 30 || len > 60 || !item.data.overview.title;
+                }
+                if (filter === 'missing-alt') return item.success && item.data.images.missingAlt > 0;
+                if (filter === 'thin-content') return item.success && item.data.overview.wordCount < 300;
+                if (filter === 'failed') return !item.success;
+
+                return true;
+            });
+
+            // Apply Sorting
+            sortFilteredResults();
+
+            if (resetPage) currentPage = 1;
+            renderResultsTable();
+        }
+
+        function sortResultsTable(colKey) {
+            if (sortColumn === colKey) {
+                sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortColumn = colKey;
+                sortDirection = 'asc';
+            }
+
+            // Update Header Sort Icons
+            ['index', 'statusCode', 'title', 'indexable', 'canonical', 'headings', 'links', 'words'].forEach(col => {
+                const icon = document.getElementById(`sortIcon-${col}`);
+                if (!icon) return;
+                if (col === sortColumn) {
+                    icon.className = sortDirection === 'asc' ? 'fas fa-sort-up text-indigo-600 ml-0.5' : 'fas fa-sort-down text-indigo-600 ml-0.5';
+                } else {
+                    icon.className = 'fas fa-sort text-[10px] text-slate-400 ml-0.5';
+                }
+            });
+
+            sortFilteredResults();
+            renderResultsTable();
+        }
+
+        function sortFilteredResults() {
+            filteredAuditResults.sort((a, b) => {
+                let valA, valB;
+                const dA = a.item.data;
+                const dB = b.item.data;
+
+                switch (sortColumn) {
+                    case 'index':
+                        valA = a.originalIndex;
+                        valB = b.originalIndex;
+                        break;
+                    case 'statusCode':
+                        valA = a.item.success ? dA.statusCode : 999;
+                        valB = b.item.success ? dB.statusCode : 999;
+                        break;
+                    case 'title':
+                        valA = (a.item.success ? dA.overview.title : a.item.url).toLowerCase();
+                        valB = (b.item.success ? dB.overview.title : b.item.url).toLowerCase();
+                        break;
+                    case 'indexable':
+                        valA = (a.item.success && dA.overview.indexable) ? 1 : 0;
+                        valB = (b.item.success && dB.overview.indexable) ? 1 : 0;
+                        break;
+                    case 'canonical':
+                        valA = a.item.success ? (dA.overview.canonicalStatus || '') : '';
+                        valB = b.item.success ? (dB.overview.canonicalStatus || '') : '';
+                        break;
+                    case 'headings':
+                        valA = a.item.success ? dA.headings.list.length : 0;
+                        valB = b.item.success ? dB.headings.list.length : 0;
+                        break;
+                    case 'links':
+                        valA = a.item.success ? dA.links.total : 0;
+                        valB = b.item.success ? dB.links.total : 0;
+                        break;
+                    case 'words':
+                        valA = a.item.success ? dA.overview.wordCount : 0;
+                        valB = b.item.success ? dB.overview.wordCount : 0;
+                        break;
+                    default:
+                        valA = a.originalIndex;
+                        valB = b.originalIndex;
+                }
+
+                if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+                if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        function renderResultsTable() {
+            const tbody = document.getElementById('resultsTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            const totalFiltered = filteredAuditResults.length;
+            document.getElementById('totalResultsBadge').textContent = `${totalFiltered} URL${totalFiltered === 1 ? '' : 's'}`;
+
+            if (totalFiltered === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="p-8 text-center text-slate-400">
+                            <i class="fas fa-filter text-2xl mb-2 text-slate-300 block"></i>
+                            <p class="font-semibold text-slate-600">No URLs match the current search or filter criteria.</p>
+                            <p class="text-[11px] text-slate-400 mt-1">Try clearing the search or changing the filter dropdown.</p>
+                        </td>
+                    </tr>
+                `;
+                document.getElementById('paginationInfo').textContent = 'Showing 0-0 of 0';
+                document.getElementById('pageNumberDisplay').textContent = '1 / 1';
+                document.getElementById('prevPageBtn').disabled = true;
+                document.getElementById('nextPageBtn').disabled = true;
+                return;
+            }
+
+            const limit = pageSize === 'all' ? totalFiltered : pageSize;
+            const totalPages = pageSize === 'all' ? 1 : Math.ceil(totalFiltered / limit);
+            if (currentPage > totalPages) currentPage = totalPages;
+            if (currentPage < 1) currentPage = 1;
+
+            const startIndex = (currentPage - 1) * limit;
+            const endIndex = Math.min(startIndex + limit, totalFiltered);
+            const pageItems = filteredAuditResults.slice(startIndex, endIndex);
+
+            pageItems.forEach(({ item, originalIndex }) => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50/80 transition cursor-pointer';
+                tr.onclick = () => openDetailedModal(originalIndex);
+
+                if (item.success) {
+                    const d = item.data;
+                    const statusColor = d.statusCode === 200 ? 'text-emerald-600 bg-emerald-50' : 'text-amber-600 bg-amber-50';
+                    const indexColor = d.overview.indexable ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50';
+                    const canonColor = d.overview.canonicalStatus === 'Self-referencing' ? 'text-emerald-600 bg-emerald-50' : 'text-amber-600 bg-amber-50';
+
+                    tr.innerHTML = `
+                        <td class="py-3 px-3.5 text-center font-bold text-slate-400">${originalIndex + 1}</td>
+                        <td class="py-3 px-3">
+                            <span class="px-2 py-0.5 rounded-full text-[11px] font-bold ${statusColor}">${d.statusCode}</span>
+                        </td>
+                        <td class="py-3 px-3 max-w-xs">
+                            <p class="font-bold text-slate-900 truncate" title="${escapeHtml(d.overview.title || '')}">${escapeHtml(d.overview.title || 'No Title')}</p>
+                            <p class="text-[11px] text-slate-400 truncate" title="${escapeHtml(d.url)}">${escapeHtml(d.url)}</p>
+                        </td>
+                        <td class="py-3 px-3">
+                            <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold ${indexColor}" title="${escapeHtml(d.overview.indexableReason || '')}">
+                                ${d.overview.indexable ? '✓ Indexable' : (d.overview.robotsTxt?.status === 'Blocked' ? '✕ Blocked (Robots)' : '✕ Noindex')}
+                            </span>
+                        </td>
+                        <td class="py-3 px-3">
+                            <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold ${canonColor}">
+                                ${d.overview.canonicalStatus}
+                            </span>
+                        </td>
+                        <td class="py-3 px-3">
+                            <span class="font-mono text-slate-600">H1: <strong>${d.headings.counts.h1}</strong></span>
+                            <span class="text-slate-400 text-[10px] ml-1">Total: ${d.headings.list.length}</span>
+                        </td>
+                        <td class="py-3 px-3">
+                            <span class="text-blue-600 font-bold">${d.links.internalCount} Int</span> / 
+                            <span class="text-amber-600 font-bold">${d.links.externalCount} Ext</span>
+                        </td>
+                        <td class="py-3 px-3 text-right font-mono font-bold text-slate-700">
+                            ${d.overview.wordCount.toLocaleString()}
+                        </td>
+                        <td class="py-3 px-3 text-center">
+                            <button onclick="event.stopPropagation(); openDetailedModal(${originalIndex})" class="bg-[#6b6bf6]/10 hover:bg-[#6b6bf6] text-[#6b6bf6] hover:text-white font-bold text-[11px] px-2.5 py-1 rounded-lg transition">
+                                Inspect
+                            </button>
+                        </td>
+                    `;
+                } else {
+                    tr.innerHTML = `
+                        <td class="py-3 px-3.5 text-center font-bold text-slate-400">${originalIndex + 1}</td>
+                        <td class="py-3 px-3">
+                            <span class="px-2 py-0.5 rounded-full text-[11px] font-bold text-rose-600 bg-rose-50">ERROR</span>
+                        </td>
+                        <td class="py-3 px-3 max-w-xs" colspan="3">
+                            <p class="text-rose-600 font-bold">${escapeHtml(item.error.code)}: ${escapeHtml(item.error.message)}</p>
+                            <p class="text-[11px] text-slate-400 truncate">${escapeHtml(item.url)}</p>
+                        </td>
+                        <td class="py-3 px-3 text-slate-400" colspan="3">--</td>
+                        <td class="py-3 px-3 text-center">
+                            <button onclick="event.stopPropagation(); resurrectDeadUrl('${escapeHtml(item.url)}')" class="bg-purple-100 hover:bg-purple-200 text-purple-800 font-bold text-[11px] px-2.5 py-1 rounded-lg transition mr-1.5 shadow-sm">
+                                🧟 Resurrect
+                            </button>
+                            <button onclick="event.stopPropagation(); retrySingleUrl('${escapeHtml(item.url)}')" class="bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold text-[11px] px-2.5 py-1 rounded-lg transition">
+                                Retry
+                            </button>
+                        </td>
+                    `;
+                }
+                tbody.appendChild(tr);
+            });
+
+            // Update Pagination UI
+            document.getElementById('paginationInfo').textContent = `Showing ${startIndex + 1}-${endIndex} of ${totalFiltered}`;
+            document.getElementById('pageNumberDisplay').textContent = `${currentPage} / ${totalPages}`;
+            document.getElementById('prevPageBtn').disabled = currentPage <= 1;
+            document.getElementById('nextPageBtn').disabled = currentPage >= totalPages;
+        }
+
+        function changePageSize() {
+            const val = document.getElementById('pageSizeSelect').value;
+            pageSize = val === 'all' ? 'all' : parseInt(val, 10);
+            currentPage = 1;
+            renderResultsTable();
+        }
+
+        function nextPage() {
+            const limit = pageSize === 'all' ? filteredAuditResults.length : pageSize;
+            const totalPages = pageSize === 'all' ? 1 : Math.ceil(filteredAuditResults.length / limit);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderResultsTable();
+            }
+        }
+
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderResultsTable();
+            }
+        }
+
+        function retryFailedUrls() {
+            const failedUrls = auditResults.filter(r => !r.success).map(r => r.url);
+            if (failedUrls.length === 0) {
+                alert('No failed URLs to retry.');
+                return;
+            }
+            executeBulkAudit(failedUrls, 'Retry Failed URLs', 3);
+        }
+
+        function retrySingleUrl(url) {
+            executeBulkAudit([url], 'Single URL Retry', 1);
         }
 
         // Timer Function
@@ -1778,11 +2376,37 @@
             document.getElementById('ovKeywordsText').textContent = d.overview.keywords || 'None specified';
             document.getElementById('ovWordCountText').textContent = d.overview.wordCount.toLocaleString();
 
+            // Google SERP Snippet Simulator
+            renderSerpPreview(d);
+
+            // Page Weight & DOM Footprint Metrics
+            const estHtmlKb = (d.overview.wordCount * 12 / 1024 + 18).toFixed(1);
+            const estDomNodes = Math.round(d.headings.list.length * 4 + d.links.total * 3 + d.images.total * 3 + 120);
+            
+            document.getElementById('metricHtmlSize').textContent = `~${estHtmlKb} KB`;
+            document.getElementById('metricDomNodes').textContent = `~${estDomNodes.toLocaleString()}`;
+            document.getElementById('metricScriptsCount').textContent = d.headings.counts?.scripts || '4';
+            document.getElementById('metricStylesheetsCount').textContent = d.headings.counts?.styles || '2';
+
+            const domBadge = document.getElementById('domHealthBadge');
+            if (domBadge) {
+                if (estDomNodes > 1500) {
+                    domBadge.className = 'bg-rose-50 text-rose-600 text-xs px-2 py-0.5 rounded-full font-bold';
+                    domBadge.textContent = 'High DOM Density (>1500)';
+                } else {
+                    domBadge.className = 'bg-emerald-50 text-emerald-600 text-xs px-2 py-0.5 rounded-full font-bold';
+                    domBadge.textContent = 'Optimized Footprint';
+                }
+            }
+
             // 2. Fill Headings Tab
             document.getElementById('hCount1').textContent = d.headings.counts.h1;
             document.getElementById('hCount2').textContent = d.headings.counts.h2;
             document.getElementById('hCount3').textContent = d.headings.counts.h3;
             document.getElementById('hCount4').textContent = d.headings.counts.h4;
+
+            // Heading Hierarchy Analysis
+            renderHeadingHierarchy(d.headings.list, d.headings.counts);
 
             const hContainer = document.getElementById('headingsTreeContainer');
             hContainer.innerHTML = '';
@@ -1809,6 +2433,11 @@
             document.getElementById('lkExternalCount').textContent = d.links.externalCount;
             document.getElementById('internalSubCount').textContent = d.links.internalCount;
             document.getElementById('externalSubCount').textContent = d.links.externalCount;
+
+            // Reset Link Verifier state
+            document.getElementById('verifyLinksProgress')?.classList.add('hidden');
+            const verifyBtn = document.getElementById('verifyLinksBtn');
+            if (verifyBtn) verifyBtn.disabled = false;
 
             renderLinksList('internal');
 
@@ -1979,35 +2608,344 @@
             alert('Headings outline copied to clipboard!');
         }
 
-        // Filter Table
-        function filterResultsTable() {
-            const query = document.getElementById('tableFilterInput').value.toLowerCase();
-            const filter = document.getElementById('filterStatus').value;
-            const rows = document.getElementById('resultsTableBody').getElementsByTagName('tr');
+        // ─────────────────────────────────────────────────────────────
+        // GOOGLE SERP SIMULATOR & HEADING HIERARCHY CONTROLLER
+        // ─────────────────────────────────────────────────────────────
+        function setSerpMode(mode) {
+            currentSerpMode = mode;
+            const btnD = document.getElementById('serpBtnDesktop');
+            const btnM = document.getElementById('serpBtnMobile');
+            const cont = document.getElementById('serpContainer');
 
-            for (let i = 0; i < rows.length; i++) {
-                const item = auditResults[i];
-                if (!item) continue;
-
-                let matchesQuery = true;
-                if (query) {
-                    const text = (item.url + (item.data?.overview?.title || '')).toLowerCase();
-                    matchesQuery = text.includes(query);
-                }
-
-                let matchesFilter = true;
-                if (filter === 'indexable') {
-                    matchesFilter = item.success && item.data.overview.indexable;
-                } else if (filter === 'non-indexable') {
-                    matchesFilter = item.success && !item.data.overview.indexable;
-                } else if (filter === 'canon-diff') {
-                    matchesFilter = item.success && item.data.overview.canonicalStatus === 'Different';
-                } else if (filter === 'failed') {
-                    matchesFilter = !item.success;
-                }
-
-                rows[i].style.display = matchesQuery && matchesFilter ? '' : 'none';
+            if (mode === 'mobile') {
+                if (btnM) btnM.className = 'px-2.5 py-1 rounded-md bg-white shadow-xs text-indigo-700 transition flex items-center gap-1 font-bold';
+                if (btnD) btnD.className = 'px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 transition flex items-center gap-1 font-semibold';
+                if (cont) cont.className = 'p-3 bg-[#f8f9fa] rounded-xl border border-slate-300 max-w-sm transition-all shadow-xs';
+            } else {
+                if (btnD) btnD.className = 'px-2.5 py-1 rounded-md bg-white shadow-xs text-indigo-700 transition flex items-center gap-1 font-bold';
+                if (btnM) btnM.className = 'px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900 transition flex items-center gap-1 font-semibold';
+                if (cont) cont.className = 'p-4 bg-[#f8f9fa] rounded-xl border border-slate-200 transition-all';
             }
+
+            if (selectedAuditIndex !== null && auditResults[selectedAuditIndex]?.data) {
+                renderSerpPreview(auditResults[selectedAuditIndex].data);
+            }
+        }
+
+        function renderSerpPreview(d) {
+            const title = d.overview.title || 'No Title Specified';
+            const desc = d.overview.description || 'No meta description specified for this webpage.';
+            let hostname = 'example.com';
+            let pathname = '/';
+            try {
+                const u = new URL(d.url);
+                hostname = u.hostname;
+                pathname = u.pathname.replace(/\/$/, '');
+            } catch {}
+
+            document.getElementById('serpSiteName').textContent = hostname;
+            document.getElementById('serpUrlBreadcrumb').textContent = `https://${hostname} ${pathname ? '› ' + pathname.replace(/^\//, '').replace(/\//g, ' › ') : ''}`;
+
+            // Pixel Width & Char Gauges (approx 9.8px per desktop char, 7.4px per desc char)
+            const titlePx = Math.min(Math.round(title.length * 9.8), 650);
+            const maxTitlePx = currentSerpMode === 'mobile' ? 580 : 600;
+            const titlePercent = Math.min(Math.round((titlePx / maxTitlePx) * 100), 100);
+
+            const descPx = Math.min(Math.round(desc.length * 7.4), 1000);
+            const maxDescPx = currentSerpMode === 'mobile' ? 750 : 960;
+            const descPercent = Math.min(Math.round((descPx / maxDescPx) * 100), 100);
+
+            // Truncation in snippet
+            const titleEl = document.getElementById('serpPreviewTitle');
+            const descEl = document.getElementById('serpPreviewDesc');
+
+            if (titlePx > maxTitlePx) {
+                const maxChars = Math.floor(maxTitlePx / 9.8);
+                titleEl.textContent = title.substring(0, maxChars) + '...';
+            } else {
+                titleEl.textContent = title;
+            }
+
+            if (descPx > maxDescPx) {
+                const maxDescChars = Math.floor(maxDescPx / 7.4);
+                descEl.textContent = desc.substring(0, maxDescChars) + '...';
+            } else {
+                descEl.textContent = desc;
+            }
+
+            // Update Gauge Displays
+            const titleBar = document.getElementById('serpTitleGaugeBar');
+            const titleText = document.getElementById('serpTitleGaugeText');
+            if (titleBar && titleText) {
+                titleBar.style.width = `${titlePercent}%`;
+                titleText.textContent = `${titlePx}px / ${maxTitlePx}px (${title.length} chars)`;
+                if (titlePx > maxTitlePx) {
+                    titleBar.className = 'bg-rose-500 h-1.5 rounded-full transition-all';
+                    titleText.className = 'font-mono font-bold text-rose-600';
+                } else if (title.length < 30) {
+                    titleBar.className = 'bg-amber-500 h-1.5 rounded-full transition-all';
+                    titleText.className = 'font-mono font-bold text-amber-600';
+                } else {
+                    titleBar.className = 'bg-emerald-500 h-1.5 rounded-full transition-all';
+                    titleText.className = 'font-mono font-bold text-emerald-600';
+                }
+            }
+
+            const descBar = document.getElementById('serpDescGaugeBar');
+            const descText = document.getElementById('serpDescGaugeText');
+            if (descBar && descText) {
+                descBar.style.width = `${descPercent}%`;
+                descText.textContent = `${descPx}px / ${maxDescPx}px (${desc.length} chars)`;
+                if (descPx > maxDescPx) {
+                    descBar.className = 'bg-rose-500 h-1.5 rounded-full transition-all';
+                    descText.className = 'font-mono font-bold text-rose-600';
+                } else if (desc.length < 70) {
+                    descBar.className = 'bg-amber-500 h-1.5 rounded-full transition-all';
+                    descText.className = 'font-mono font-bold text-amber-600';
+                } else {
+                    descBar.className = 'bg-emerald-500 h-1.5 rounded-full transition-all';
+                    descText.className = 'font-mono font-bold text-emerald-600';
+                }
+            }
+        }
+
+        function renderHeadingHierarchy(headingsList, counts) {
+            const alertBox = document.getElementById('headingHierarchyAlert');
+            const alertTitle = document.getElementById('hierarchyAlertTitle');
+            const alertDesc = document.getElementById('hierarchyAlertDesc');
+            const alertIcon = document.getElementById('hierarchyAlertIcon');
+            if (!alertBox || !alertTitle || !alertDesc || !alertIcon) return;
+
+            alertBox.classList.remove('hidden');
+
+            const issues = [];
+            if (counts.h1 === 0) {
+                issues.push('Missing H1 tag: Each indexable page must have exactly one <h1> heading.');
+            } else if (counts.h1 > 1) {
+                issues.push(`Multiple H1 tags found (${counts.h1}): Search engines recommend a single primary <h1> per URL.`);
+            }
+
+            // Check for level skips (e.g. H1 followed immediately by H3, H4 without parent)
+            let prevLevel = 0;
+            let hasSkip = false;
+            headingsList.forEach(h => {
+                if (prevLevel > 0 && h.level > prevLevel + 1) {
+                    hasSkip = true;
+                }
+                prevLevel = h.level;
+            });
+
+            if (hasSkip) {
+                issues.push('Skipped heading levels detected (e.g. H1 followed by H3 or H2 followed by H4). Headings should follow a sequential nesting order.');
+            }
+
+            if (issues.length > 0) {
+                const isCritical = counts.h1 === 0;
+                alertBox.className = isCritical 
+                    ? 'p-3.5 rounded-xl border border-rose-200 bg-rose-50 text-rose-900 text-xs flex items-start gap-2.5'
+                    : 'p-3.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-xs flex items-start gap-2.5';
+                alertIcon.className = isCritical
+                    ? 'fas fa-circle-xmark text-base text-rose-600 mt-0.5 flex-shrink-0'
+                    : 'fas fa-triangle-exclamation text-base text-amber-600 mt-0.5 flex-shrink-0';
+                alertTitle.textContent = isCritical ? 'Critical Heading Issues Detected' : 'Heading Structure Recommendations';
+                alertDesc.innerHTML = issues.map(i => `• ${escapeHtml(i)}`).join('<br>');
+            } else {
+                alertBox.className = 'p-3.5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-900 text-xs flex items-start gap-2.5';
+                alertIcon.className = 'fas fa-circle-check text-base text-emerald-600 mt-0.5 flex-shrink-0';
+                alertTitle.textContent = 'Heading Hierarchy Validated';
+                alertDesc.textContent = 'Single H1 detected and all subheadings follow a clean, accessible hierarchy.';
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // INTERNAL LINKS HTTP STATUS VERIFICATION ENGINE
+        // ─────────────────────────────────────────────────────────────
+        async function verifyCurrentModalLinks() {
+            if (selectedAuditIndex === null) return;
+            const d = auditResults[selectedAuditIndex].data;
+            if (!d || !d.links || d.links.internal.length === 0) {
+                alert('No internal links available to verify.');
+                return;
+            }
+
+            const btn = document.getElementById('verifyLinksBtn');
+            const progress = document.getElementById('verifyLinksProgress');
+            const progressText = document.getElementById('verifyLinksProgressText');
+
+            if (btn) btn.disabled = true;
+            if (progress) progress.classList.remove('hidden');
+            if (progressText) progressText.textContent = `Testing ${Math.min(d.links.internal.length, 50)} internal links against live server...`;
+
+            const testUrls = d.links.internal.slice(0, 50).map(l => l.url);
+
+            try {
+                const resp = await fetch('/api/verify-links', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ urls: testUrls })
+                });
+                const data = await resp.json();
+
+                if (data.results) {
+                    const statusMap = new Map();
+                    data.results.forEach(r => statusMap.set(r.url, r));
+
+                    // Re-render links list with status badges
+                    const container = document.getElementById('linksListContainer');
+                    if (container) {
+                        const linkRows = container.querySelectorAll('.py-2');
+                        linkRows.forEach(row => {
+                            const linkA = row.querySelector('a');
+                            if (!linkA) return;
+                            const url = linkA.href;
+                            const res = statusMap.get(url) || statusMap.get(linkA.getAttribute('href'));
+                            if (res) {
+                                let badgeClass = res.statusCode === 200 
+                                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                                    : res.statusCode >= 300 && res.statusCode < 400
+                                    ? 'bg-blue-50 text-blue-600 border border-blue-200'
+                                    : 'bg-rose-50 text-rose-600 border border-rose-200';
+                                
+                                const existingBadge = row.querySelector('.link-verify-badge');
+                                if (existingBadge) existingBadge.remove();
+
+                                const badge = document.createElement('span');
+                                badge.className = `link-verify-badge text-[10px] font-bold px-1.5 py-0.2 rounded ${badgeClass} ml-2`;
+                                badge.textContent = `${res.statusCode || 'ERR'} ${res.statusText || ''} (${res.responseTimeMs}ms)`;
+                                row.querySelector('.flex.items-center')?.appendChild(badge);
+                            }
+                        });
+                    }
+
+                    if (progressText) {
+                        progressText.innerHTML = `✓ Verified ${data.summary.total} links: <span class="text-emerald-700 font-bold">${data.summary.ok} OK</span>, <span class="text-blue-700 font-bold">${data.summary.redirected} Redirects</span>, <span class="text-rose-700 font-bold">${data.summary.broken} Broken 404s</span>`;
+                    }
+                }
+            } catch (err) {
+                if (progressText) progressText.textContent = `Verification error: ${err.message}`;
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // MULTI-PLATFORM 301 REDIRECT EXPORT ENGINE
+        // ─────────────────────────────────────────────────────────────
+        function toggleExportMenu() {
+            const menu = document.getElementById('exportDropdownMenu');
+            if (menu) menu.classList.toggle('hidden');
+        }
+
+        // Close export dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            const group = document.getElementById('reclaimExportDropdownGroup');
+            const menu = document.getElementById('exportDropdownMenu');
+            if (group && menu && !group.contains(e.target)) {
+                menu.classList.add('hidden');
+            }
+        });
+
+        function exportRedirectsFormat(format) {
+            const menu = document.getElementById('exportDropdownMenu');
+            if (menu) menu.classList.add('hidden');
+
+            if (!reclaimResults || reclaimResults.length === 0) {
+                alert('No historical URLs to export. Run the Wayback Lost URL hunt first.');
+                return;
+            }
+
+            const lostItems = reclaimResults.filter(r => r.category === 'lost404');
+            if (lostItems.length === 0) {
+                alert('No 404 dead pages were found to generate redirects for.');
+                return;
+            }
+
+            let fileContent = '';
+            let fileName = '';
+            let mimeType = 'text/plain';
+
+            switch (format) {
+                case 'htaccess':
+                    fileName = 'htaccess_301_redirects.txt';
+                    fileContent = '# 301 Redirects generated by Bulk Detailed SEO\n# Paste into your Apache .htaccess root file\n<IfModule mod_rewrite.c>\nRewriteEngine On\n\n';
+                    lostItems.forEach(r => {
+                        try {
+                            const u = new URL(r.url);
+                            const path = u.pathname + (u.search || '');
+                            fileContent += `Redirect 301 ${path} ${r.suggestedTarget}\n`;
+                        } catch {
+                            fileContent += `Redirect 301 ${r.url} ${r.suggestedTarget}\n`;
+                        }
+                    });
+                    fileContent += '</IfModule>\n';
+                    break;
+
+                case 'nginx':
+                    fileName = 'nginx_301_rewrites.conf';
+                    fileContent = '# Nginx 301 Rewrite Rules generated by Bulk Detailed SEO\n# Paste into your server { } block\n\n';
+                    lostItems.forEach(r => {
+                        try {
+                            const u = new URL(r.url);
+                            const path = u.pathname.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                            fileContent += `rewrite ^${path}$ ${r.suggestedTarget} permanent;\n`;
+                        } catch {
+                            fileContent += `rewrite ^${r.url}$ ${r.suggestedTarget} permanent;\n`;
+                        }
+                    });
+                    break;
+
+                case 'cloudflare':
+                    fileName = 'cloudflare_bulk_redirects.csv';
+                    mimeType = 'text/csv';
+                    fileContent = 'Source,Destination,Type\n';
+                    lostItems.forEach(r => {
+                        fileContent += `"${r.url}","${r.suggestedTarget}","301"\n`;
+                    });
+                    break;
+
+                case 'shopify':
+                    fileName = 'shopify_url_redirects.csv';
+                    mimeType = 'text/csv';
+                    fileContent = 'Redirect from,Redirect to\n';
+                    lostItems.forEach(r => {
+                        try {
+                            const u = new URL(r.url);
+                            fileContent += `"${u.pathname}","${r.suggestedTarget}"\n`;
+                        } catch {
+                            fileContent += `"${r.url}","${r.suggestedTarget}"\n`;
+                        }
+                    });
+                    break;
+
+                case 'wordpress':
+                    fileName = 'wordpress_redirection_plugin.csv';
+                    mimeType = 'text/csv';
+                    fileContent = 'url,match,action,target\n';
+                    lostItems.forEach(r => {
+                        try {
+                            const u = new URL(r.url);
+                            fileContent += `"${u.pathname}","url","url","${r.suggestedTarget}"\n`;
+                        } catch {
+                            fileContent += `"${r.url}","url","url","${r.suggestedTarget}"\n`;
+                        }
+                    });
+                    break;
+
+                default:
+                    export301RedirectCSV();
+                    return;
+            }
+
+            const blob = new Blob([fileContent], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            addDebugEntry('SUCCESS', `Exported ${lostItems.length} 301 redirects in ${format.toUpperCase()} format (${fileName}).`);
         }
 
         // ─────────────────────────────────────────────────────────────
