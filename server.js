@@ -2121,3 +2121,14 @@ app.listen(PORT, () => {
     console.log(`================================================================`);
     logDebug({ level: 'SYSTEM', message: `Server started on port ${PORT}` });
 });
+
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err);
+    logDebug({ level: 'ERROR', message: `Uncaught Exception: ${err.message}`, details: { stack: err.stack } });
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection:', reason);
+    logDebug({ level: 'ERROR', message: `Unhandled Rejection: ${reason?.message || reason}` });
+});
+
